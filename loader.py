@@ -22,8 +22,8 @@ class Loader:
             self.stocks.append(data)
 
     def load(self, start_date=None, end_date=None):
-        if start_date is not None:
-            self.download_data(start_date, end_date)
-        else:
+        if start_date is None:
             self.read_data()
+        else:
+            self.download_data(start_date, end_date)
         return self.stocks
