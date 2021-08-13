@@ -1,5 +1,5 @@
 from env.environment import PortfolioEnv
-from agents.agent_ppo import Agent
+from agents.agent_ppo_shared_layer import Agent
 from plot import plot
 
 
@@ -13,7 +13,7 @@ def main():
     alpha = 0.0003
     agent = Agent(n_actions=env.n_actions(), batch_size=batch_size, alpha=alpha,
                   n_epochs=n_epochs, input_dims=env.state_shape(),
-                  fc1_dims=256, fc2_dims=256)
+                  fc1_dims=512, fc2_dims=512)
 
     # agent.load_models()
 
