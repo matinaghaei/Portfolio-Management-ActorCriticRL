@@ -1,5 +1,5 @@
 from env.environment import PortfolioEnv
-from agents.agent_ppo_shared_layer import Agent
+from agents.agent_ppo import Agent
 from plot import plot
 
 

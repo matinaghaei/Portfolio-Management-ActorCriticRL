@@ -1,29 +1,45 @@
 from env.environment import PortfolioEnv
+import numpy as np
 import torch as T
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 from plot import plot
 
+
 class ActorCritic(nn.Module):
-    def __init__(self, input_dims, n_actions, gamma=0.99, layer1_size=128, layer2_size=128):
+    def __init__(self, input_dims, n_actions, gamma=0.99, fc1_dims=128, entropy_coef=1):
         super(ActorCritic, self).__init__()
 
         self.gamma = gamma
+        self.entropy_coef = entropy_coef
 
-        self.pi1 = nn.Linear(*input_dims, layer1_size)
-        self.v1 = nn.Linear(*input_dims, layer1_size)
-        self.mu = nn.Linear(layer1_size, n_actions)
-        self.var = nn.Linear(layer1_size, n_actions)
-        self.v = nn.Linear(layer1_size, 1)
+        self.pi1 = nn.Linear(*input_dims, fc1_dims)
+        f1 = 1. / np.sqrt(self.pi1.weight.data.size()[0])
+        T.nn.init.uniform_(self.pi1.weight.data, -f1, f1)
+        T.nn.init.uniform_(self.pi1.bias.data, -f1, f1)
+        self.bn1 = nn.LayerNorm(fc1_dims)
 
-        # self.pi1 = nn.Linear(*input_dims, layer1_size)
-        # self.pi2 = nn.Linear(layer1_size, layer2_size)
-        # self.mu = nn.Linear(layer2_size, n_actions)
-        # self.var = nn.Linear(layer2_size, n_actions)
-        # self.v1 = nn.Linear(*input_dims, layer1_size)
-        # self.v2 = nn.Linear(layer1_size, layer2_size)
-        # self.v = nn.Linear(layer2_size, 1)
+        self.v1 = nn.Linear(*input_dims, fc1_dims)
+        f2 = 1. / np.sqrt(self.v1.weight.data.size()[0])
+        T.nn.init.uniform_(self.v1.weight.data, -f2, f2)
+        T.nn.init.uniform_(self.v1.bias.data, -f2, f2)
+        self.bn2 = nn.LayerNorm(fc1_dims)
+
+        self.mu = nn.Linear(fc1_dims, n_actions)
+        f3 = 0.003
+        T.nn.init.uniform_(self.mu.weight.data, -f3, f3)
+        T.nn.init.uniform_(self.mu.bias.data, -f3, f3)
+
+        self.var = nn.Linear(fc1_dims, n_actions)
+        f4 = 0.003
+        T.nn.init.uniform_(self.var.weight.data, -f4, f4)
+        T.nn.init.uniform_(self.var.bias.data, -f4, f4)
+
+        self.v = nn.Linear(fc1_dims, 1)
+        f5 = 0.003
+        T.nn.init.uniform_(self.v.weight.data, -f5, f5)
+        T.nn.init.uniform_(self.v.bias.data, -f5, f5)
 
         self.rewards = []
         self.actions = []
@@ -40,21 +56,12 @@ class ActorCritic(nn.Module):
         self.rewards = []
 
     def forward(self, state):
-        pi1 = F.relu(self.pi1(state))
-        v1 = F.relu(self.v1(state))
+        pi1 = F.relu(self.bn1(self.pi1(state)))
+        v1 = F.relu(self.bn2(self.v1(state)))
 
-        mu = T.tanh(self.mu(pi1))
+        mu = self.mu(pi1)
         var = F.softplus(self.var(pi1))
         v = self.v(v1)
-
-        # pi1 = F.relu(self.pi1(state))
-        # pi2 = F.relu(self.pi2(pi1))
-        # mu = self.mu(pi2)
-        # var = F.softplus(self.var(pi2))
-        #
-        # v1 = F.relu(self.v1(state))
-        # v2 = F.relu(self.v2(v1))
-        # v = self.v(v2)
 
         return mu, var, v
 
@@ -87,6 +94,8 @@ class ActorCritic(nn.Module):
         log_probs = dist.log_prob(actions)
         actor_loss = (-log_probs * (returns-values).unsqueeze(-1)).mean()
 
+        # entropy_loss = -dist.entropy().mean()
+
         total_loss = critic_loss + actor_loss
 
         return total_loss
@@ -105,11 +114,11 @@ class Agent:
     score_history = []
 
     def __init__(self, global_actor_critic, input_dims, n_actions,
-                 gamma, name, t_max, layer1_size=128, layer2_size=128):
-        self.local_actor_critic = ActorCritic(input_dims, n_actions, gamma, layer1_size, layer2_size)
+                 gamma, name, t_max, layer1_size=128):
+        self.local_actor_critic = ActorCritic(input_dims, n_actions, gamma, layer1_size)
         self.global_actor_critic = global_actor_critic
         self.name = 'w%02i' % name
-        self.env = PortfolioEnv(action_scale=1)
+        self.env = PortfolioEnv(action_scale=1000)
         self.t_max = t_max
         self.figure_file = f'plots/a2c/{self.name}.png'
         self.t_step = 1
