@@ -161,7 +161,7 @@ class Agent:
         self.t_step += 1
         self.observation = observation_
         print(f"{self.name} Date: {info},\tBalance: {int(self.observation[0])},\tWealth: {int(wealth)},\t"
-              f"َActions: {[int(act) for act in action]}")
+              f"Shares: {self.observation[1:31]}")
         self.score_history.append(wealth/1000000)
         self.djia.append(sum(self.observation[1:31])/self.djia_initial)
 

@@ -36,7 +36,7 @@ def main():
             learn_iters += 1
         observation = observation_
         print(f"Date: {info},\tBalance: {int(observation[0])},\tWealth: {int(wealth)},\t"
-              f"Actions: {[int(act*1000) for act in action]}")
+              f"Shares: {observation[1:31]}")
         score_history.append(wealth/1000000)
         djia.append(sum(observation[1:31])/djia_initial)
 
