@@ -28,7 +28,7 @@ def main():
         agent.learn()
         observation = observation_
         print(f"Date: {info},\tBalance: {int(observation[0])},\tWealth: {int(wealth)},\t"
-              f"Shares: {observation[1:31]}")
+              f"Shares: {observation[31:61]}")
         score_history.append(wealth/1000000)
         djia.append(sum(observation[1:31])/djia_initial)
 
