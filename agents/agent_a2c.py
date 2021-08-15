@@ -4,7 +4,7 @@ import torch as T
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
-from plot import plot
+from plot import add_curve
 
 
 class ActorCritic(nn.Module):
@@ -120,7 +120,6 @@ class Agent:
         self.name = 'w%02i' % name
         self.env = PortfolioEnv(action_scale=1000)
         self.t_max = t_max
-        self.figure_file = f'plots/a2c/{self.name}.png'
         self.t_step = 1
         self.local_network_gradient = None
         self.done = False
@@ -166,7 +165,7 @@ class Agent:
         self.djia.append(sum(self.observation[1:31])/self.djia_initial)
 
         if done:
-            plot(self.score_history, 'A2C', self.djia, 'DJIA', self.figure_file)
+            add_curve(self.score_history, f'A2C {self.name}')
             Agent.n_dones += 1
             # self.reset()
 

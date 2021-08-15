@@ -1,12 +1,15 @@
 from env.environment import PortfolioEnv
 from agents.agent_ppo import Agent
-from plot import plot
+from plot import add_curve, save_plot
 
 
 def main():
     figure_file = 'plots/ppo.png'
 
     env = PortfolioEnv(action_scale=1000)
+    djia_history = env.get_djia_history()
+    add_curve(djia_history/djia_history[0], 'DJIA')
+
     T = 20
     batch_size = 5
     n_epochs = 4
@@ -42,7 +45,8 @@ def main():
 
     agent.save_models()
 
-    plot(score_history, 'PPO', djia, 'DJIA', figure_file)
+    add_curve(score_history, 'PPO')
+    save_plot(figure_file)
 
 
 if __name__ == '__main__':

@@ -1,14 +1,21 @@
+from env.environment import PortfolioEnv
 import numpy as np
 import torch as T
 from agents.agent_a2c import ActorCritic
 from agents.agent_a2c import Agent
+from plot import add_curve, save_plot
 
-N_AGENTS = 16
+N_AGENTS = 4
 GAMMA = 0.99
 T_MAX = 5
 
 
 def main():
+    figure_file = 'plots/a2c.png'
+
+    env = PortfolioEnv()
+    djia_history = env.get_djia_history()
+    add_curve(djia_history/djia_history[0], 'DJIA')
 
     global_actor_critic = ActorCritic(input_dims=(61,), n_actions=30, fc1_dims=128)
     optimizer = T.optim.Adam(global_actor_critic.parameters())
@@ -33,6 +40,8 @@ def main():
             optimizer.step()
             [w.resume() for w in workers]
             # print("------ global network updated ------")
+
+    save_plot(figure_file)
 
 
 if __name__ == '__main__':

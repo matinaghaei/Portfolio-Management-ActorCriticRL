@@ -51,6 +51,10 @@ class PortfolioEnv:
     def get_wealth(self):
         return self.prices.dot(self.shares) + self.balance
 
+    def get_djia_history(self):
+        return [sum([stock['Adj Close'][row] for stock in self.historical_data])
+                for row in range(self.historical_data[0].index.size)]
+
     def step(self, action):
         actions = np.maximum(np.round(np.array(action) * self.action_scale), -self.shares)
         cost = self.prices.dot(actions)
