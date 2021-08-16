@@ -14,7 +14,7 @@ class Loader:
             data = yf.download(ticker, group_by='Ticker', start=start_date, end=end_date)
             data['ticker'] = ticker
             self.stocks.append(data)
-            data.to_csv(f'data/ticker_{ticker}.csv')
+            data.to_csv(f'env/data/ticker_{ticker}.csv')
 
     def read_data(self):
         for ticker in self.tickers:

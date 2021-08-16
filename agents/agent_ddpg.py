@@ -156,7 +156,7 @@ class ActorNetwork(nn.Module):
         x = self.fc2(x)
         x = self.bn2(x)
         x = F.relu(x)
-        x = T.tanh(self.mu(x))
+        x = self.mu(x)
 
         return x
 

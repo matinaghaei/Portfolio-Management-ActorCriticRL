@@ -37,6 +37,5 @@ def main():
     save_plot(figure_file)
 
 
-
 if __name__ == '__main__':
     main()

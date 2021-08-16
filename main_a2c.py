@@ -17,12 +17,12 @@ def main():
     djia_history = env.get_djia_history()
     add_curve(djia_history/djia_history[0], 'DJIA')
 
-    global_actor_critic = ActorCritic(input_dims=(61,), n_actions=30, fc1_dims=128)
+    global_actor_critic = ActorCritic(input_dims=env.state_shape(), n_actions=env.n_actions(), fc1_dims=128)
     optimizer = T.optim.Adam(global_actor_critic.parameters())
 
     workers = [Agent(global_actor_critic,
-                     input_dims=(61,),
-                     n_actions=30,
+                     input_dims=env.state_shape(),
+                     n_actions=env.n_actions(),
                      gamma=GAMMA,
                      name=i,
                      t_max=T_MAX,
