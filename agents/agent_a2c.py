@@ -3,16 +3,23 @@ import numpy as np
 import torch as T
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
 from torch.distributions import Normal
-from plot import add_curve
+import multiprocessing as mp
+from plot import add_curve, save_plot
 
 
 class ActorCritic(nn.Module):
-    def __init__(self, input_dims, n_actions, gamma=0.99, fc1_dims=128, entropy_coef=1):
+    def __init__(self, input_dims, n_actions, gamma=0.99, fc1_dims=128, lr=1e-3, entropy_coef=1):
         super(ActorCritic, self).__init__()
 
         self.gamma = gamma
         self.entropy_coef = entropy_coef
+
+        self.rewards = []
+        self.actions = []
+        self.states = []
+        self.done = False
 
         self.pi1 = nn.Linear(*input_dims, fc1_dims)
         f1 = 1. / np.sqrt(self.pi1.weight.data.size()[0])
@@ -41,19 +48,16 @@ class ActorCritic(nn.Module):
         T.nn.init.uniform_(self.v.weight.data, -f5, f5)
         T.nn.init.uniform_(self.v.bias.data, -f5, f5)
 
-        self.rewards = []
-        self.actions = []
-        self.states = []
+        self.optimizer = optim.Adam(self.parameters(), lr=lr)
+        self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
 
-    def remember(self, state, action, reward):
-        self.states.append(state)
-        self.actions.append(action)
-        self.rewards.append(reward)
+        self.to(self.device)
 
-    def clear_memory(self):
-        self.states = []
-        self.actions = []
-        self.rewards = []
+    def set_memory(self, states, actions, rewards, done):
+        self.states = states
+        self.actions = actions
+        self.rewards = rewards
+        self.done = done
 
     def forward(self, state):
         pi1 = F.relu(self.bn1(self.pi1(state)))
@@ -65,26 +69,26 @@ class ActorCritic(nn.Module):
 
         return mu, var, v
 
-    def calc_R(self, done):
-        states = T.tensor(self.states, dtype=T.float)
+    def calc_R(self):
+        states = T.tensor(self.states, dtype=T.float).to(self.device)
         mu, var, v = self.forward(states[-1])
 
-        R = v * (1 - int(done))
+        R = v * (1 - int(self.done))
 
         batch_return = []
         for reward in self.rewards[::-1]:
             R = reward + self.gamma * R
             batch_return.append(R)
         batch_return.reverse()
-        batch_return = T.tensor(batch_return, dtype=T.float)
+        batch_return = T.tensor(batch_return, dtype=T.float).to(self.device)
 
         return batch_return
 
-    def calc_loss(self, done):
-        states = T.tensor(self.states, dtype=T.float)
-        actions = T.tensor(self.actions, dtype=T.float)
+    def calc_loss(self):
+        states = T.tensor(self.states, dtype=T.float).to(self.device)
+        actions = T.tensor(self.actions, dtype=T.float).to(self.device)
 
-        returns = self.calc_R(done)
+        returns = self.calc_R()
 
         mu, var, values = self.forward(states)
         values = values.squeeze()
@@ -101,73 +105,67 @@ class ActorCritic(nn.Module):
         return total_loss
 
     def choose_action(self, observation):
-        state = T.tensor([observation], dtype=T.float)
+        state = T.tensor([observation], dtype=T.float).to(self.device)
         mu, var, v = self.forward(state)
         dist = Normal(mu, var.clamp(min=1e-3))
         action = dist.sample()
         return action.numpy()[0]
 
 
-class Agent:
-    n_dones = 0
-    n_gradients = 0
-    score_history = []
+class Agent(mp.Process):
 
-    def __init__(self, global_actor_critic, input_dims, n_actions,
-                 gamma, name, t_max, layer1_size=128):
-        self.local_actor_critic = ActorCritic(input_dims, n_actions, gamma, layer1_size)
-        self.global_actor_critic = global_actor_critic
-        self.name = 'w%02i' % name
+    def __init__(self, network, lock, conn, name, t_max):
+        super(Agent, self).__init__()
+
+        self.rewards = []
+        self.actions = []
+        self.states = []
+        self.score_history = []
+        self.network = network
+        self.lock = lock
+        self.conn = conn
+        self.name = name
+        self.figure_file = f'plots/a2c/{name}.png'
         self.env = PortfolioEnv(action_scale=1000)
         self.t_max = t_max
-        self.t_step = 1
-        self.local_network_gradient = None
+        self.t_step = 0
         self.done = False
         self.observation = self.env.reset()
-        self.djia_initial = sum(self.observation[1:31])
-        self.waiting = False
-        self.score_history = []
-        self.djia = []
 
-    def resume(self):
-        if not self.done:
-            self.local_network_gradient = None
-            Agent.n_gradients -= 1
-            self.local_actor_critic.load_state_dict(
-                self.global_actor_critic.state_dict())
-            self.local_actor_critic.clear_memory()
-            self.waiting = False
+    def remember(self, state, action, reward):
+        self.states.append(state)
+        self.actions.append(action)
+        self.rewards.append(reward)
+
+    def clear_memory(self):
+        self.states = []
+        self.actions = []
+        self.rewards = []
 
     def reset(self):
         self.done = False
         self.observation = self.env.reset()
-        self.t_step = 1
+        self.t_step = 0
+        self.score_history = []
 
-    def iterate(self):
-        if self.waiting:
-            return
-        action = self.local_actor_critic.choose_action(self.observation)
-        observation_, reward, done, info, wealth = self.env.step(action)
-        self.local_actor_critic.remember(self.observation, action, reward)
-        if self.t_step % self.t_max == 0 or done:
-            loss = self.local_actor_critic.calc_loss(done)
-            self.local_actor_critic.zero_grad(set_to_none=True)
-            loss.backward()
-            self.local_network_gradient =\
-                [param.grad for param in self.local_actor_critic.parameters()]
-            self.waiting = True
-            Agent.n_gradients += 1
-        self.t_step += 1
-        self.observation = observation_
-        print(f"{self.name} Date: {info},\tBalance: {int(self.observation[0])},\tWealth: {int(wealth)},\t"
-              f"Shares: {self.observation[31:61]}")
-        self.score_history.append(wealth/1000000)
-        self.djia.append(sum(self.observation[1:31])/self.djia_initial)
+    def run(self):
+        buy_hold_history = self.env.buy_hold_history()
+        add_curve(buy_hold_history / buy_hold_history[0], 'Buy & Hold')
 
-        if done:
-            add_curve(self.score_history, f'A2C {self.name}')
-            Agent.n_dones += 1
-            # self.reset()
+        while not self.done:
+            action = self.network.choose_action(self.observation)
+            observation_, reward, self.done, info, wealth = self.env.step(action)
+            self.remember(self.observation, action, reward)
+            if self.t_step % self.t_max == 0 or self.done:
+                self.conn.send((self.states, self.actions, self.rewards, self.done))
+                self.conn.recv()
+                self.clear_memory()
+            self.t_step += 1
+            self.observation = observation_
+            with self.lock:
+                print(f"{self.name} Date: {info},\tBalance: {int(self.observation[0])},\tWealth: {int(wealth)},\t"
+                      f"Shares: {self.observation[31:61]}")
+            self.score_history.append(wealth/1000000)
 
-    def get_gradient(self):
-        return self.local_network_gradient
+        add_curve(self.score_history, 'A2C')
+        save_plot(self.figure_file)

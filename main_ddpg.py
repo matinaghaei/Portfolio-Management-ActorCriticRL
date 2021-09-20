@@ -8,8 +8,8 @@ def main():
     figure_file = 'plots/ddpg.png'
 
     env = PortfolioEnv(action_scale=1000)
-    djia_history = env.get_djia_history()
-    add_curve(djia_history/djia_history[0], 'DJIA')
+    buy_hold_history = env.buy_hold_history()
+    add_curve(buy_hold_history/buy_hold_history[0], 'Buy & Hold')
 
     agent = Agent(alpha=0.000025, beta=0.00025, input_dims=env.state_shape(), tau=0.001, env=env,
                   batch_size=64, layer1_size=400, layer2_size=300, n_actions=env.n_actions())

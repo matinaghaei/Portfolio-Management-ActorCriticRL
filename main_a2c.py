@@ -1,47 +1,36 @@
 from env.environment import PortfolioEnv
-import numpy as np
-import torch as T
-from agents.agent_a2c import ActorCritic
-from agents.agent_a2c import Agent
+from agents.agent_a2c import ActorCritic, Agent
 from plot import add_curve, save_plot
+from multiprocessing import Pipe, Lock
+import time
 
 N_AGENTS = 4
-GAMMA = 0.99
-T_MAX = 5
 
 
 def main():
-    figure_file = 'plots/a2c.png'
-
     env = PortfolioEnv()
-    djia_history = env.get_djia_history()
-    add_curve(djia_history/djia_history[0], 'DJIA')
+    network = ActorCritic(input_dims=env.state_shape(), n_actions=env.n_actions(), gamma=0.99, fc1_dims=128, lr=1e-3)
 
-    global_actor_critic = ActorCritic(input_dims=env.state_shape(), n_actions=env.n_actions(), fc1_dims=128)
-    optimizer = T.optim.Adam(global_actor_critic.parameters())
+    pipes = [Pipe() for i in range(N_AGENTS)]
+    local_conns, remote_conns = list(zip(*pipes))
+    lock = Lock()
+    workers = [Agent(network,
+                     lock,
+                     conn=remote_conns[i],
+                     name=f'w{i}',
+                     t_max=5) for i in range(N_AGENTS)]
+    [w.start() for w in workers]
 
-    workers = [Agent(global_actor_critic,
-                     input_dims=env.state_shape(),
-                     n_actions=env.n_actions(),
-                     gamma=GAMMA,
-                     name=i,
-                     t_max=T_MAX,
-                     layer1_size=128) for i in range(N_AGENTS)]
-
-    while Agent.n_dones < N_AGENTS:
-        [w.iterate() for w in workers]
-        if Agent.n_gradients == N_AGENTS:
-            gradients = np.array([w.get_gradient() for w in workers], dtype=object)
-            mean_gradient = np.mean(gradients, axis=0)
-            for grad, global_param in zip(
-                    mean_gradient,
-                    global_actor_critic.parameters()):
-                global_param._grad = grad
-            optimizer.step()
-            [w.resume() for w in workers]
-            # print("------ global network updated ------")
-
-    save_plot(figure_file)
+    while not network.done:
+        losses = []
+        for c in local_conns:
+            network.set_memory(*c.recv())
+            losses.append(network.calc_loss())
+        total_loss = sum(losses)
+        network.zero_grad()
+        total_loss.backward()
+        network.optimizer.step()
+        [c.send('resume') for c in local_conns]
 
 
 if __name__ == '__main__':

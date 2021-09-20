@@ -18,7 +18,9 @@ class Loader:
 
     def read_data(self):
         for ticker in self.tickers:
-            data = pd.read_csv(f'env/data/ticker_{ticker}.csv', index_col='Date')
+            data = pd.read_csv(f'env/data/ticker_{ticker}.csv')
+            data['Date'] = pd.to_datetime(data['Date'])
+            data.set_index('Date', inplace=True)
             self.stocks.append(data)
 
     def load(self, start_date=None, end_date=None):

@@ -7,8 +7,8 @@ def main():
     figure_file = 'plots/ppo.png'
 
     env = PortfolioEnv(action_scale=1000)
-    djia_history = env.get_djia_history()
-    add_curve(djia_history/djia_history[0], 'DJIA')
+    buy_hold_history = env.buy_hold_history()
+    add_curve(buy_hold_history/buy_hold_history[0], 'Buy & Hold')
 
     T = 20
     batch_size = 5
@@ -21,13 +21,10 @@ def main():
     # agent.load_models()
 
     score_history = []
-    djia = []
-
     learn_iters = 0
     n_steps = 0
 
     observation = env.reset()
-    djia_initial = sum(observation[1:31])
     done = False
     while not done:
         action, prob, val = agent.choose_action(observation)
@@ -41,7 +38,6 @@ def main():
         print(f"Date: {info},\tBalance: {int(observation[0])},\tWealth: {int(wealth)},\t"
               f"Shares: {observation[31:61]}")
         score_history.append(wealth/1000000)
-        djia.append(sum(observation[1:31])/djia_initial)
 
     agent.save_models()
 
