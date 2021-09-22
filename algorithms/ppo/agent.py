@@ -55,7 +55,7 @@ class ActorNetwork(nn.Module):
                  fc1_dims=256, fc2_dims=256, chkpt_dir='checkpoints/ppo'):
         super(ActorNetwork, self).__init__()
 
-        self.checkpoint_file = os.path.join(chkpt_dir, 'actor_torch_ppo')
+        self.checkpoint_file = os.path.join(chkpt_dir, 'actor')
 
         self.pi1 = nn.Linear(*input_dims, fc1_dims)
         f1 = 1. / np.sqrt(self.pi1.weight.data.size()[0])
@@ -92,18 +92,20 @@ class ActorNetwork(nn.Module):
         return mu, var
 
     def save_checkpoint(self):
+        print('... saving checkpoint ...')
         T.save(self.state_dict(), self.checkpoint_file)
 
     def load_checkpoint(self):
+        print('... loading checkpoint ...')
         self.load_state_dict(T.load(self.checkpoint_file))
 
 
 class CriticNetwork(nn.Module):
-    def __init__(self, input_dims, alpha, fc1_dims=400, fc2_dims=300,
+    def __init__(self, input_dims, alpha,fc1_dims=400, fc2_dims=300,
                  chkpt_dir='checkpoints/ppo'):
         super(CriticNetwork, self).__init__()
 
-        self.checkpoint_file = os.path.join(chkpt_dir, 'critic_torch_ppo')
+        self.checkpoint_file = os.path.join(chkpt_dir, 'critic')
 
         self.v1 = nn.Linear(*input_dims, fc1_dims)
         f1 = 1. / np.sqrt(self.v1.weight.data.size()[0])

@@ -1,3 +1,4 @@
+import os
 from env.environment import PortfolioEnv
 import numpy as np
 import torch as T
@@ -10,8 +11,11 @@ from plot import add_curve, save_plot
 
 
 class ActorCritic(nn.Module):
-    def __init__(self, input_dims, n_actions, gamma=0.99, fc1_dims=128, lr=1e-3, entropy_coef=1):
+    def __init__(self, input_dims, n_actions, gamma=0.99, fc1_dims=128, lr=1e-3,
+                 entropy_coef=1, chkpt_dir='checkpoints/a2c'):
         super(ActorCritic, self).__init__()
+
+        self.checkpoint_file = os.path.join(chkpt_dir, 'actor')
 
         self.gamma = gamma
         self.entropy_coef = entropy_coef
@@ -111,6 +115,14 @@ class ActorCritic(nn.Module):
         action = dist.sample()
         return action.numpy()[0]
 
+    def save_checkpoint(self):
+        print('... saving checkpoint ...')
+        T.save(self.state_dict(), self.checkpoint_file)
+
+    def load_checkpoint(self):
+        print('... loading checkpoint ...')
+        self.load_state_dict(T.load(self.checkpoint_file))
+
 
 class Agent(mp.Process):
 
@@ -120,7 +132,6 @@ class Agent(mp.Process):
         self.rewards = []
         self.actions = []
         self.states = []
-        self.score_history = []
         self.network = network
         self.lock = lock
         self.conn = conn
@@ -128,9 +139,6 @@ class Agent(mp.Process):
         self.figure_file = f'plots/a2c/{name}.png'
         self.env = PortfolioEnv(action_scale=1000)
         self.t_max = t_max
-        self.t_step = 0
-        self.done = False
-        self.observation = self.env.reset()
 
     def remember(self, state, action, reward):
         self.states.append(state)
@@ -142,30 +150,29 @@ class Agent(mp.Process):
         self.actions = []
         self.rewards = []
 
-    def reset(self):
-        self.done = False
-        self.observation = self.env.reset()
-        self.t_step = 0
-        self.score_history = []
-
     def run(self):
+        self.clear_memory()
+        done = False
+        observation = self.env.reset()
+        t_step = 0
+        score_history = []
         buy_hold_history = self.env.buy_hold_history()
         add_curve(buy_hold_history / buy_hold_history[0], 'Buy & Hold')
 
-        while not self.done:
-            action = self.network.choose_action(self.observation)
-            observation_, reward, self.done, info, wealth = self.env.step(action)
-            self.remember(self.observation, action, reward)
-            if self.t_step % self.t_max == 0 or self.done:
-                self.conn.send((self.states, self.actions, self.rewards, self.done))
+        while not done:
+            action = self.network.choose_action(observation)
+            observation_, reward, done, info, wealth = self.env.step(action)
+            self.remember(observation, action, reward)
+            if t_step % self.t_max == 0 or done:
+                self.conn.send((self.states, self.actions, self.rewards, done))
                 self.conn.recv()
                 self.clear_memory()
-            self.t_step += 1
-            self.observation = observation_
+            t_step += 1
+            observation = observation_
             with self.lock:
-                print(f"{self.name} Date: {info},\tBalance: {int(self.observation[0])},\tWealth: {int(wealth)},\t"
-                      f"Shares: {self.observation[31:61]}")
-            self.score_history.append(wealth/1000000)
+                print(f"A2C - {self.name} Date: {info},\tBalance: {int(observation[0])},\tWealth: {int(wealth)},\t"
+                      f"Shares: {observation[31:61]}")
+            score_history.append(wealth/1000000)
 
-        add_curve(self.score_history, 'A2C')
+        add_curve(score_history, 'A2C')
         save_plot(self.figure_file)
