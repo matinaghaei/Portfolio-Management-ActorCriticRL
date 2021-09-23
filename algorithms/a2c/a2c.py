@@ -6,9 +6,9 @@ from plot import add_curve, save_plot
 
 class A2C:
 
-    def __init__(self, interval, n_agents, load=False, alpha=1e-3, gamma=0.99, layer1_size=128, t_max=5):
+    def __init__(self, intervals, n_agents, load=False, alpha=1e-3, gamma=0.99, layer1_size=128, t_max=5):
 
-        self.interval = interval
+        self.intervals = intervals
         self.n_agents = n_agents
         self.figure_dir = 'plots/a2c'
         self.t_max = t_max
@@ -29,7 +29,7 @@ class A2C:
             pipes = [Pipe() for i in range(self.n_agents)]
             local_conns, remote_conns = list(zip(*pipes))
             workers = [Agent(self.network,
-                             self.interval['training'],
+                             self.intervals['training'],
                              conn=remote_conns[i],
                              name=f'w{i}',
                              t_max=self.t_max) for i in range(self.n_agents)]
@@ -65,7 +65,7 @@ class A2C:
 
         self.network.load_checkpoint()
 
-        buy_hold_history = self.env.buy_hold_history(*self.interval['training'])
+        buy_hold_history = self.env.buy_hold_history(*self.intervals['training'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
         for i in range(self.n_agents):
@@ -73,7 +73,7 @@ class A2C:
         save_plot(filename=self.figure_dir + '/training.png',
                   x_label='Iterations', y_label='Cumulative Return (Dollars)')
 
-        buy_hold_history = self.env.buy_hold_history(*self.interval['validation'])
+        buy_hold_history = self.env.buy_hold_history(*self.intervals['validation'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
         add_curve(validation_history, 'A2C validation')
@@ -81,7 +81,7 @@ class A2C:
                   x_label='Iterations', y_label='Cumulative Return (Dollars)')
 
     def validate(self):
-        observation = self.env.reset(*self.interval['validation'])
+        observation = self.env.reset(*self.intervals['validation'])
         done = False
         while not done:
             action = self.network.choose_action(observation)
@@ -91,11 +91,11 @@ class A2C:
 
     def test(self):
         return_history = []
-        buy_hold_history = self.env.buy_hold_history(*self.interval['testing'])
+        buy_hold_history = self.env.buy_hold_history(*self.intervals['testing'])
         add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy & Hold')
 
         done = False
-        observation = self.env.reset(*self.interval['testing'])
+        observation = self.env.reset(*self.intervals['testing'])
         t_step = 0
         while not done:
             action = self.network.choose_action(observation)

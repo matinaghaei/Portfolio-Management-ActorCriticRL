@@ -5,10 +5,10 @@ from plot import add_curve, save_plot
 
 class PPO:
 
-    def __init__(self, interval, load=False, alpha=0.0003, n_epochs=4,
+    def __init__(self, intervals, load=False, alpha=0.0003, n_epochs=4,
                  batch_size=5, layer1_size=512, layer2_size=512, t_max=20):
 
-        self.interval = interval
+        self.intervals = intervals
         self.figure_dir = 'plots/ppo'
         self.t_max = t_max
         self.env = PortfolioEnv(action_scale=1000)
@@ -28,7 +28,7 @@ class PPO:
 
         while True:
             n_steps = 0
-            observation = self.env.reset(*self.interval['training'])
+            observation = self.env.reset(*self.intervals['training'])
             done = False
             while not done:
                 action, prob, val = self.agent.choose_action(observation)
@@ -55,14 +55,14 @@ class PPO:
 
         self.agent.load_models()
 
-        buy_hold_history = self.env.buy_hold_history(*self.interval['training'])
+        buy_hold_history = self.env.buy_hold_history(*self.intervals['training'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
         add_curve(training_history, 'PPO training')
         save_plot(filename=self.figure_dir + '/training.png',
                   x_label='Iterations', y_label='Cumulative Return (Dollars)')
 
-        buy_hold_history = self.env.buy_hold_history(*self.interval['validation'])
+        buy_hold_history = self.env.buy_hold_history(*self.intervals['validation'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
         add_curve(validation_history, 'PPO validation')
@@ -70,7 +70,7 @@ class PPO:
                   x_label='Iterations', y_label='Cumulative Return (Dollars)')
 
     def validate(self):
-        observation = self.env.reset(*self.interval['validation'])
+        observation = self.env.reset(*self.intervals['validation'])
         done = False
         while not done:
             action, prob, val = self.agent.choose_action(observation)
@@ -80,11 +80,11 @@ class PPO:
 
     def test(self):
         return_history = []
-        buy_hold_history = self.env.buy_hold_history(*self.interval['testing'])
+        buy_hold_history = self.env.buy_hold_history(*self.intervals['testing'])
         add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy & Hold')
         n_steps = 0
 
-        observation = self.env.reset(*self.interval['testing'])
+        observation = self.env.reset(*self.intervals['testing'])
         done = False
         while not done:
             action, prob, val = self.agent.choose_action(observation)

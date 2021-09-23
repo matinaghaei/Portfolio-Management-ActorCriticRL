@@ -6,10 +6,10 @@ from plot import add_curve, save_plot
 
 class DDPG:
 
-    def __init__(self, interval, load=False, alpha=0.000025, beta=0.00025, tau=0.001,
+    def __init__(self, intervals, load=False, alpha=0.000025, beta=0.00025, tau=0.001,
                  batch_size=64, layer1_size=400, layer2_size=300):
 
-        self.interval = interval
+        self.intervals = intervals
         self.figure_dir = 'plots/ddpg'
         self.env = PortfolioEnv(action_scale=1000)
         self.agent = Agent(alpha=alpha, beta=beta, input_dims=self.env.state_shape(), tau=tau,
@@ -27,7 +27,7 @@ class DDPG:
         max_wealth = 0
 
         while True:
-            observation = self.env.reset(*self.interval['training'])
+            observation = self.env.reset(*self.intervals['training'])
             done = False
             while not done:
                 action = self.agent.choose_action(observation)
@@ -52,14 +52,14 @@ class DDPG:
 
         self.agent.load_models()
 
-        buy_hold_history = self.env.buy_hold_history(*self.interval['training'])
+        buy_hold_history = self.env.buy_hold_history(*self.intervals['training'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
         add_curve(training_history, 'DDPG training')
         save_plot(filename=self.figure_dir + '/training.png',
                   x_label='Iterations', y_label='Cumulative Return (Dollars)')
 
-        buy_hold_history = self.env.buy_hold_history(*self.interval['validation'])
+        buy_hold_history = self.env.buy_hold_history(*self.intervals['validation'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
         add_curve(validation_history, 'DDPG validation')
@@ -67,7 +67,7 @@ class DDPG:
                   x_label='Iterations', y_label='Cumulative Return (Dollars)')
 
     def validate(self):
-        observation = self.env.reset(*self.interval['validation'])
+        observation = self.env.reset(*self.intervals['validation'])
         done = False
         while not done:
             action = self.agent.choose_action(observation)
@@ -77,10 +77,10 @@ class DDPG:
 
     def test(self):
         return_history = []
-        buy_hold_history = self.env.buy_hold_history(*self.interval['testing'])
+        buy_hold_history = self.env.buy_hold_history(*self.intervals['testing'])
         add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy & Hold')
 
-        observation = self.env.reset(*self.interval['testing'])
+        observation = self.env.reset(*self.intervals['testing'])
         done = False
         while not done:
             action = self.agent.choose_action(observation)
