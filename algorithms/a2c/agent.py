@@ -15,7 +15,7 @@ class ActorCritic(nn.Module):
                  entropy_coef=1, chkpt_dir='checkpoints/a2c'):
         super(ActorCritic, self).__init__()
 
-        self.checkpoint_file = os.path.join(chkpt_dir, 'actor')
+        self.checkpoint_file = os.path.join(chkpt_dir, 'network')
 
         self.gamma = gamma
         self.entropy_coef = entropy_coef
@@ -63,6 +63,16 @@ class ActorCritic(nn.Module):
         self.rewards = rewards
         self.done = done
 
+    def remember(self, state, action, reward):
+        self.states.append(state)
+        self.actions.append(action)
+        self.rewards.append(reward)
+
+    def clear_memory(self):
+        self.states = []
+        self.actions = []
+        self.rewards = []
+
     def forward(self, state):
         pi1 = F.relu(self.bn1(self.pi1(state)))
         v1 = F.relu(self.bn2(self.v1(state)))
@@ -73,11 +83,11 @@ class ActorCritic(nn.Module):
 
         return mu, var, v
 
-    def calc_R(self):
+    def calc_R(self, done):
         states = T.tensor(self.states, dtype=T.float).to(self.device)
         mu, var, v = self.forward(states[-1])
 
-        R = v * (1 - int(self.done))
+        R = v * (1 - int(done))
 
         batch_return = []
         for reward in self.rewards[::-1]:
@@ -88,11 +98,13 @@ class ActorCritic(nn.Module):
 
         return batch_return
 
-    def calc_loss(self):
+    def calc_loss(self, done=None):
         states = T.tensor(self.states, dtype=T.float).to(self.device)
         actions = T.tensor(self.actions, dtype=T.float).to(self.device)
 
-        returns = self.calc_R()
+        if done is None:
+            done = self.done
+        returns = self.calc_R(done)
 
         mu, var, values = self.forward(states)
         values = values.squeeze()
@@ -126,17 +138,16 @@ class ActorCritic(nn.Module):
 
 class Agent(mp.Process):
 
-    def __init__(self, network, lock, conn, name, t_max):
+    def __init__(self, network, interval, conn, name, t_max):
         super(Agent, self).__init__()
 
         self.rewards = []
         self.actions = []
         self.states = []
         self.network = network
-        self.lock = lock
+        self.interval = interval
         self.conn = conn
         self.name = name
-        self.figure_file = f'plots/a2c/{name}.png'
         self.env = PortfolioEnv(action_scale=1000)
         self.t_max = t_max
 
@@ -151,13 +162,9 @@ class Agent(mp.Process):
         self.rewards = []
 
     def run(self):
-        self.clear_memory()
         done = False
-        observation = self.env.reset()
+        observation = self.env.reset(*self.interval)
         t_step = 0
-        score_history = []
-        buy_hold_history = self.env.buy_hold_history()
-        add_curve(buy_hold_history / buy_hold_history[0], 'Buy & Hold')
 
         while not done:
             action = self.network.choose_action(observation)
@@ -169,10 +176,4 @@ class Agent(mp.Process):
                 self.clear_memory()
             t_step += 1
             observation = observation_
-            with self.lock:
-                print(f"A2C - {self.name} Date: {info},\tBalance: {int(observation[0])},\tWealth: {int(wealth)},\t"
-                      f"Shares: {observation[31:61]}")
-            score_history.append(wealth/1000000)
-
-        add_curve(score_history, 'A2C')
-        save_plot(self.figure_file)
+        self.conn.send(wealth)

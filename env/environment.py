@@ -51,9 +51,17 @@ class PortfolioEnv:
     def get_wealth(self):
         return self.prices.dot(self.shares) + self.balance
 
-    def buy_hold_history(self):
+    def buy_hold_history(self, start_date=None, end_date=None):
+        if start_date is None:
+            start_row = 0
+        else:
+            start_row = self.historical_data[0].index.get_loc(start_date)
+        if end_date is None:
+            end_row = self.historical_data[0].index.size - 1
+        else:
+            end_row = self.historical_data[0].index.get_loc(end_date)
         return [sum([stock['Adj Close'][row] for stock in self.historical_data])
-                for row in range(self.historical_data[0].index.size)]
+                for row in range(start_row, end_row + 1)]
 
     def step(self, action):
         actions = np.maximum(np.round(np.array(action) * self.action_scale), -self.shares)

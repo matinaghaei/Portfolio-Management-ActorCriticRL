@@ -61,6 +61,9 @@ class ReplayBuffer(object):
 
         return states, actions, rewards, states_, terminal
 
+    def clear_buffer(self):
+        self.mem_cntr = 0
+
 
 class CriticNetwork(nn.Module):
     def __init__(self, beta, input_dims, fc1_dims, fc2_dims, n_actions, name,
@@ -272,21 +275,6 @@ class Agent(object):
                                      (1 - tau) * target_actor_dict[name].clone()
         self.target_actor.load_state_dict(actor_state_dict)
 
-        """
-        #Verify that the copy assignment worked correctly
-        target_actor_params = self.target_actor.named_parameters()
-        target_critic_params = self.target_critic.named_parameters()
-        critic_state_dict = dict(target_critic_params)
-        actor_state_dict = dict(target_actor_params)
-        print('\nActor Networks', tau)
-        for name, param in self.actor.named_parameters():
-            print(name, T.equal(param, actor_state_dict[name]))
-        print('\nCritic Networks', tau)
-        for name, param in self.critic.named_parameters():
-            print(name, T.equal(param, critic_state_dict[name]))
-        input()
-        """
-
     def save_models(self):
         self.actor.save_checkpoint()
         self.target_actor.save_checkpoint()
@@ -298,19 +286,3 @@ class Agent(object):
         self.target_actor.load_checkpoint()
         self.critic.load_checkpoint()
         self.target_critic.load_checkpoint()
-
-    def check_actor_params(self):
-        current_actor_params = self.actor.named_parameters()
-        current_actor_dict = dict(current_actor_params)
-        original_actor_dict = dict(self.original_actor.named_parameters())
-        original_critic_dict = dict(self.original_critic.named_parameters())
-        current_critic_params = self.critic.named_parameters()
-        current_critic_dict = dict(current_critic_params)
-        print('Checking Actor parameters')
-
-        for param in current_actor_dict:
-            print(param, T.equal(original_actor_dict[param], current_actor_dict[param]))
-        print('Checking critic parameters')
-        for param in current_critic_dict:
-            print(param, T.equal(original_critic_dict[param], current_critic_dict[param]))
-        input()
