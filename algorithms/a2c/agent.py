@@ -138,7 +138,7 @@ class ActorCritic(nn.Module):
 
 class Agent(mp.Process):
 
-    def __init__(self, network, interval, conn, name, t_max):
+    def __init__(self, network, interval, conn, name, t_max, verbose=False):
         super(Agent, self).__init__()
 
         self.rewards = []
@@ -150,6 +150,7 @@ class Agent(mp.Process):
         self.name = name
         self.env = PortfolioEnv(action_scale=1000)
         self.t_max = t_max
+        self.verbose = verbose
 
     def remember(self, state, action, reward):
         self.states.append(state)
@@ -176,4 +177,7 @@ class Agent(mp.Process):
                 self.clear_memory()
             t_step += 1
             observation = observation_
+            if self.verbose:
+                print(f"A2C validation - Date: {info.date()},\tBalance: {int(observation[0])},\t"
+                      f"Cumulative Return: {int(wealth) - 1000000},\tShares: {observation[31:61]}")
         self.conn.send(wealth)

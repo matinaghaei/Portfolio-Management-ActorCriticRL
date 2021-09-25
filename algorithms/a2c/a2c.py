@@ -19,7 +19,7 @@ class A2C:
         if load:
             self.network.load_checkpoint()
 
-    def train(self):
+    def train(self, verbose=False):
         training_history = [[] for i in range(self.n_agents)]
         validation_history = []
         iteration = 1
@@ -32,7 +32,8 @@ class A2C:
                              self.intervals['training'],
                              conn=remote_conns[i],
                              name=f'w{i}',
-                             t_max=self.t_max) for i in range(self.n_agents)]
+                             t_max=self.t_max,
+                             verbose=verbose) for i in range(self.n_agents)]
             [w.start() for w in workers]
 
             self.network.done = False
@@ -80,13 +81,16 @@ class A2C:
         save_plot(filename=self.figure_dir + '/validation.png',
                   x_label='Iterations', y_label='Cumulative Return (Dollars)')
 
-    def validate(self):
+    def validate(self, verbose=False):
         observation = self.env.reset(*self.intervals['validation'])
         done = False
         while not done:
             action = self.network.choose_action(observation)
             observation_, reward, done, info, wealth = self.env.step(action)
             observation = observation_
+            if verbose:
+                print(f"A2C validation - Date: {info.date()},\tBalance: {int(observation[0])},\t"
+                      f"Cumulative Return: {int(wealth) - 1000000},\tShares: {observation[31:61]}")
         return wealth
 
     def test(self):

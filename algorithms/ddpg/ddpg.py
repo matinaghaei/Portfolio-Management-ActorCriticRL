@@ -20,7 +20,7 @@ class DDPG:
 
         np.random.seed(0)
 
-    def train(self):
+    def train(self, verbose=False):
         training_history = []
         validation_history = []
         iteration = 1
@@ -35,12 +35,15 @@ class DDPG:
                 self.agent.remember(observation, action, reward, observation_, int(done))
                 self.agent.learn()
                 observation = observation_
+                if verbose:
+                    print(f"DDPG training - Date: {info.date()},\tBalance: {int(observation[0])},\t"
+                          f"Cumulative Return: {int(wealth) - 1000000},\tShares: {observation[31:61]}")
             self.agent.memory.clear_buffer()
 
             print(f"DDPG training - Iteration: {iteration},\tCumulative Return: {int(wealth) - 1000000}")
             training_history.append(wealth - 1000000)
 
-            validation_wealth = self.validate()
+            validation_wealth = self.validate(verbose)
             print(f"DDPG validating - Iteration: {iteration},\tCumulative Return: {int(validation_wealth) - 1000000}")
             validation_history.append(validation_wealth - 1000000)
             if validation_wealth > max_wealth:
@@ -66,13 +69,16 @@ class DDPG:
         save_plot(filename=self.figure_dir + '/validation.png',
                   x_label='Iterations', y_label='Cumulative Return (Dollars)')
 
-    def validate(self):
+    def validate(self, verbose=False):
         observation = self.env.reset(*self.intervals['validation'])
         done = False
         while not done:
             action = self.agent.choose_action(observation)
             observation_, reward, done, info, wealth = self.env.step(action)
             observation = observation_
+            if verbose:
+                print(f"DDPG validation - Date: {info.date()},\tBalance: {int(observation[0])},\t"
+                      f"Cumulative Return: {int(wealth) - 1000000},\tShares: {observation[31:61]}")
         return wealth
 
     def test(self):
