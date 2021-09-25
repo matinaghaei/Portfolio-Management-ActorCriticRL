@@ -1,6 +1,6 @@
 from env.environment import PortfolioEnv
 from algorithms.a2c.agent import ActorCritic, Agent
-from multiprocessing import Pipe
+from multiprocessing import Pipe, Lock
 from plot import add_curve, save_plot
 
 
@@ -28,10 +28,12 @@ class A2C:
         while True:
             pipes = [Pipe() for i in range(self.n_agents)]
             local_conns, remote_conns = list(zip(*pipes))
+            lock = Lock()
             workers = [Agent(self.network,
                              self.intervals['training'],
                              conn=remote_conns[i],
-                             name=f'w{i}',
+                             lock=lock,
+                             name=f'worker {i}',
                              t_max=self.t_max,
                              verbose=verbose) for i in range(self.n_agents)]
             [w.start() for w in workers]
