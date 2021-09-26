@@ -125,7 +125,7 @@ class ActorCritic(nn.Module):
         mu, var, v = self.forward(state)
         dist = Normal(mu, var.clamp(min=1e-3))
         action = dist.sample()
-        return action.numpy()[0]
+        return action[0].detach().cpu().numpy().tolist()
 
     def save_checkpoint(self):
         print('... saving checkpoint ...')

@@ -175,8 +175,8 @@ class Agent:
         value = self.critic(state)
         action = dist.sample()
 
-        probs = T.squeeze(dist.log_prob(action)).detach().numpy().tolist()
-        action = T.squeeze(action).numpy().tolist()
+        probs = T.squeeze(dist.log_prob(action)).detach().cpu().numpy().tolist()
+        action = T.squeeze(action).detach().cpu().numpy().tolist()
         value = T.squeeze(value).item()
 
         return action, probs, value

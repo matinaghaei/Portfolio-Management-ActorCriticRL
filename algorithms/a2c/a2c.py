@@ -1,6 +1,6 @@
 from env.environment import PortfolioEnv
 from algorithms.a2c.agent import ActorCritic, Agent
-from multiprocessing import Pipe, Lock
+from torch.multiprocessing import Pipe, Lock
 from plot import add_curve, save_plot
 
 
@@ -15,6 +15,7 @@ class A2C:
         self.env = PortfolioEnv()
         self.network = ActorCritic(input_dims=self.env.state_shape(), n_actions=self.env.n_actions(),
                                    gamma=gamma, fc1_dims=layer1_size, lr=alpha)
+        self.network.share_memory()
 
         if load:
             self.network.load_checkpoint()
@@ -56,7 +57,7 @@ class A2C:
                       f"Cumulative Return: {int(wealth[i]) - 1000000}")
                 training_history[i].append(wealth[i] - 1000000)
 
-            validation_wealth = self.validate()
+            validation_wealth = self.validate(verbose)
             print(f"A2C validating - Iteration: {iteration},\tCumulative Return: {int(validation_wealth) - 1000000}")
             validation_history.append(validation_wealth - 1000000)
             if validation_wealth > max_wealth:
