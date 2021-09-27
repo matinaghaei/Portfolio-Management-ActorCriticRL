@@ -51,7 +51,7 @@ class PPOMemory:
 
 
 class ActorNetwork(nn.Module):
-    def __init__(self, n_actions, input_dims, alpha,
+    def __init__(self, action_dims, input_dims, alpha,
                  fc1_dims=256, fc2_dims=256, chkpt_dir='checkpoints/ppo'):
         super(ActorNetwork, self).__init__()
 
@@ -69,12 +69,12 @@ class ActorNetwork(nn.Module):
         T.nn.init.uniform_(self.pi2.bias.data, -f2, f2)
         self.bn2 = nn.LayerNorm(fc2_dims)
 
-        self.mu = nn.Linear(fc2_dims, n_actions)
+        self.mu = nn.Linear(fc2_dims, *action_dims)
         f3 = 0.003
         T.nn.init.uniform_(self.mu.weight.data, -f3, f3)
         T.nn.init.uniform_(self.mu.bias.data, -f3, f3)
 
-        self.var = nn.Linear(fc2_dims, n_actions)
+        self.var = nn.Linear(fc2_dims, *action_dims)
         f4 = 0.003
         T.nn.init.uniform_(self.var.weight.data, -f4, f4)
         T.nn.init.uniform_(self.var.bias.data, -f4, f4)
@@ -143,14 +143,14 @@ class CriticNetwork(nn.Module):
 
 
 class Agent:
-    def __init__(self, n_actions, input_dims, fc1_dims=256, fc2_dims=256, gamma=0.99, alpha=0.0003,
+    def __init__(self, action_dims, input_dims, fc1_dims=256, fc2_dims=256, gamma=0.99, alpha=0.0003,
                  gae_lambda=0.95, policy_clip=0.2, batch_size=64, n_epochs=10):
         self.gamma = gamma
         self.policy_clip = policy_clip
         self.n_epochs = n_epochs
         self.gae_lambda = gae_lambda
 
-        self.actor = ActorNetwork(n_actions, input_dims, alpha, fc1_dims, fc2_dims)
+        self.actor = ActorNetwork(action_dims, input_dims, alpha, fc1_dims, fc2_dims)
         self.critic = CriticNetwork(input_dims, alpha, fc1_dims, fc2_dims)
         self.memory = PPOMemory(batch_size)
 

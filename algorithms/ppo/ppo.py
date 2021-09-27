@@ -13,7 +13,7 @@ class PPO:
         self.t_max = t_max
         self.env = PortfolioEnv(action_scale=1000)
 
-        self.agent = Agent(n_actions=self.env.n_actions(), batch_size=batch_size, alpha=alpha,
+        self.agent = Agent(action_dims=self.env.action_shape(), batch_size=batch_size, alpha=alpha,
                            n_epochs=n_epochs, input_dims=self.env.state_shape(),
                            fc1_dims=layer1_size, fc2_dims=layer2_size)
 
@@ -39,8 +39,8 @@ class PPO:
                     self.agent.learn()
                 observation = observation_
                 if verbose:
-                    print(f"PPO training - Date: {info.date()},\tBalance: {int(observation[0])},\t"
-                          f"Cumulative Return: {int(wealth) - 1000000},\tShares: {observation[31:61]}")
+                    print(f"PPO training - Date: {info.date()},\tBalance: {int(self.env.get_balance())},\t"
+                          f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
             self.agent.memory.clear_memory()
 
             print(f"PPO training - Iteration: {iteration},\tCumulative Return: {int(wealth) - 1000000}")
@@ -52,7 +52,7 @@ class PPO:
             if validation_wealth > max_wealth:
                 self.agent.save_models()
             max_wealth = max(max_wealth, validation_wealth)
-            if validation_history[-2:].count(max_wealth - 1000000) == 0:
+            if validation_history[-5:].count(max_wealth - 1000000) == 0:
                 break
             iteration += 1
 
@@ -63,14 +63,14 @@ class PPO:
         add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
         add_curve(training_history, 'PPO training')
         save_plot(filename=self.figure_dir + '/training.png',
-                  x_label='Iterations', y_label='Cumulative Return (Dollars)')
+                  x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['validation'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
         add_curve(validation_history, 'PPO validation')
         save_plot(filename=self.figure_dir + '/validation.png',
-                  x_label='Iterations', y_label='Cumulative Return (Dollars)')
+                  x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
     def validate(self, verbose=False):
         observation = self.env.reset(*self.intervals['validation'])
@@ -80,8 +80,8 @@ class PPO:
             observation_, reward, done, info, wealth = self.env.step(action)
             observation = observation_
             if verbose:
-                print(f"PPO validation - Date: {info.date()},\tBalance: {int(observation[0])},\t"
-                      f"Cumulative Return: {int(wealth) - 1000000},\tShares: {observation[31:61]}")
+                print(f"PPO validation - Date: {info.date()},\tBalance: {int(self.env.get_balance())},\t"
+                      f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
         return wealth
 
     def test(self):
@@ -101,8 +101,8 @@ class PPO:
                 self.agent.learn()
             observation = observation_
 
-            print(f"PPO testing - Date: {info.date()},\tBalance: {int(observation[0])},\t"
-                  f"Cumulative Return: {int(wealth) - 1000000},\tShares: {observation[31:61]}")
+            print(f"PPO testing - Date: {info.date()},\tBalance: {int(self.env.get_balance())},\t"
+                  f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
             return_history.append(wealth - 1000000)
         self.agent.memory.clear_memory()
 

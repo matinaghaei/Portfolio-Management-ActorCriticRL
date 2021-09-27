@@ -11,7 +11,7 @@ from plot import add_curve, save_plot
 
 
 class ActorCritic(nn.Module):
-    def __init__(self, input_dims, n_actions, gamma=0.99, fc1_dims=128, lr=1e-3,
+    def __init__(self, input_dims, action_dims, gamma=0.99, fc1_dims=128, lr=1e-3,
                  entropy_coef=1, chkpt_dir='checkpoints/a2c'):
         super(ActorCritic, self).__init__()
 
@@ -37,12 +37,12 @@ class ActorCritic(nn.Module):
         T.nn.init.uniform_(self.v1.bias.data, -f2, f2)
         self.bn2 = nn.LayerNorm(fc1_dims)
 
-        self.mu = nn.Linear(fc1_dims, n_actions)
+        self.mu = nn.Linear(fc1_dims, *action_dims)
         f3 = 0.003
         T.nn.init.uniform_(self.mu.weight.data, -f3, f3)
         T.nn.init.uniform_(self.mu.bias.data, -f3, f3)
 
-        self.var = nn.Linear(fc1_dims, n_actions)
+        self.var = nn.Linear(fc1_dims, *action_dims)
         f4 = 0.003
         T.nn.init.uniform_(self.var.weight.data, -f4, f4)
         T.nn.init.uniform_(self.var.bias.data, -f4, f4)
@@ -180,6 +180,6 @@ class Agent(mp.Process):
             observation = observation_
             if self.verbose:
                 with self.lock:
-                    print(f"A2C training - {self.name} - Date: {info.date()},\tBalance: {int(observation[0])},\t"
-                          f"Cumulative Return: {int(wealth) - 1000000},\tShares: {observation[31:61]}")
+                    print(f"A2C training - {self.name} - Date: {info.date()},\tBalance: {int(self.env.get_balance())},\t"
+                          f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
         self.conn.send(wealth)

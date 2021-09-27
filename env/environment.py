@@ -5,7 +5,7 @@ from env.loader import Loader
 class PortfolioEnv:
 
     def __init__(self, start_date=None, end_date=None, action_scale=1):
-        self.loader = Loader()
+        self.loader = Loader(djia_year=2019)
         self.historical_data = self.loader.load(start_date, end_date)
         self.n_stocks = len(self.historical_data)
         self.prices = np.zeros(self.n_stocks)
@@ -16,10 +16,10 @@ class PortfolioEnv:
         self.action_scale = action_scale
 
     def state_shape(self):
-        return 2 * self.n_stocks + 1,
+        return self.n_stocks,
 
-    def n_actions(self):
-        return self.n_stocks
+    def action_shape(self):
+        return self.n_stocks + 1,
 
     def reset(self, start_date=None, end_date=None, initial_balance=1000000):
         if start_date is None:
@@ -40,7 +40,10 @@ class PortfolioEnv:
         return np.array([stock['Adj Close'][self.current_row] for stock in self.historical_data])
 
     def get_state(self):
-        return [self.balance] + self.prices.tolist() + self.shares.tolist()
+        # return [self.balance] + self.prices.tolist() + self.shares.tolist()
+        return self.prices.tolist()
+        # state = (self.prices - min(self.prices)) / (max(self.prices) - min(self.prices))
+        # return state.tolist()
 
     def is_finished(self):
         return self.current_row == self.end_row
@@ -50,6 +53,12 @@ class PortfolioEnv:
 
     def get_wealth(self):
         return self.prices.dot(self.shares) + self.balance
+    
+    def get_balance(self):
+        return self.balance
+    
+    def get_shares(self):
+        return self.shares
 
     def buy_hold_history(self, start_date=None, end_date=None):
         if start_date is None:
@@ -63,20 +72,20 @@ class PortfolioEnv:
         return [sum([stock['Adj Close'][row] for stock in self.historical_data])
                 for row in range(start_row, end_row + 1)]
 
-    def step(self, action):
-        actions = np.maximum(np.round(np.array(action) * self.action_scale), -self.shares)
-        cost = self.prices.dot(actions)
-        if cost > self.balance:
-            actions = np.floor(actions * self.balance / cost)
-            cost = self.prices.dot(actions)
-        self.shares = self.shares + actions.astype(np.int)
-        self.balance -= cost
-        self.current_row += 1
-        new_prices = self.get_prices()
-        reward = (new_prices - self.prices).dot(self.shares)
-        self.prices = new_prices
+    # def step(self, action):
+    #     actions = np.maximum(np.round(np.array(action) * self.action_scale), -self.shares)
+    #     cost = self.prices.dot(actions)
+    #     if cost > self.balance:
+    #         actions = np.floor(actions * self.balance / cost)
+    #         cost = self.prices.dot(actions)
+    #     self.shares = self.shares + actions.astype(np.int)
+    #     self.balance -= cost
+    #     self.current_row += 1
+    #     new_prices = self.get_prices()
+    #     reward = (new_prices - self.prices).dot(self.shares)
+    #     self.prices = new_prices
 
-        return self.get_state(), reward, self.is_finished(), self.get_date(), self.get_wealth()
+    #     return self.get_state(), reward, self.is_finished(), self.get_date(), self.get_wealth()
 
     # def step(self, action):
     #     actions = np.clip(action, -1, +1)
@@ -97,3 +106,16 @@ class PortfolioEnv:
     #     self.prices = new_prices
     #
     #     return self.get_state(), reward, self.is_finished(), self.get_date(), self.get_wealth()
+
+    def step(self, action):
+        new_shares = np.floor(self.get_wealth() * np.array(action[1:]) / self.prices)
+        actions = new_shares - self.shares
+        cost = self.prices.dot(actions)
+        self.shares = self.shares + actions.astype(np.int)
+        self.balance -= cost
+        self.current_row += 1
+        new_prices = self.get_prices()
+        reward = (new_prices - self.prices).dot(self.shares)
+        self.prices = new_prices
+
+        return self.get_state(), reward, self.is_finished(), self.get_date(), self.get_wealth()

@@ -30,12 +30,12 @@ class OUActionNoise(object):
 
 
 class ReplayBuffer(object):
-    def __init__(self, max_size, input_shape, n_actions):
+    def __init__(self, max_size, input_shape, action_shape):
         self.mem_size = max_size
         self.mem_cntr = 0
         self.state_memory = np.zeros((self.mem_size, *input_shape))
         self.new_state_memory = np.zeros((self.mem_size, *input_shape))
-        self.action_memory = np.zeros((self.mem_size, n_actions))
+        self.action_memory = np.zeros((self.mem_size, *action_shape))
         self.reward_memory = np.zeros(self.mem_size)
         self.terminal_memory = np.zeros(self.mem_size, dtype=np.float32)
 
@@ -66,7 +66,7 @@ class ReplayBuffer(object):
 
 
 class CriticNetwork(nn.Module):
-    def __init__(self, beta, input_dims, fc1_dims, fc2_dims, n_actions, name,
+    def __init__(self, beta, input_dims, action_dims, fc1_dims, fc2_dims, name,
                  chkpt_dir='checkpoints/ddpg'):
         super(CriticNetwork, self).__init__()
 
@@ -74,21 +74,21 @@ class CriticNetwork(nn.Module):
 
         self.fc1 = nn.Linear(*input_dims, fc1_dims)
         f1 = 1. / np.sqrt(self.fc1.weight.data.size()[0])
-        T.nn.init.uniform_(self.fc1.weight.data, -f1, f1)
-        T.nn.init.uniform_(self.fc1.bias.data, -f1, f1)
+        # T.nn.init.uniform_(self.fc1.weight.data, -f1, f1)
+        # T.nn.init.uniform_(self.fc1.bias.data, -f1, f1)
         self.bn1 = nn.LayerNorm(fc1_dims)
 
         self.fc2 = nn.Linear(fc1_dims, fc2_dims)
         f2 = 1. / np.sqrt(self.fc2.weight.data.size()[0])
-        T.nn.init.uniform_(self.fc2.weight.data, -f2, f2)
-        T.nn.init.uniform_(self.fc2.bias.data, -f2, f2)
+        # T.nn.init.uniform_(self.fc2.weight.data, -f2, f2)
+        # T.nn.init.uniform_(self.fc2.bias.data, -f2, f2)
         self.bn2 = nn.LayerNorm(fc2_dims)
 
-        self.action_value = nn.Linear(n_actions, fc2_dims)
+        self.action_value = nn.Linear(*action_dims, fc2_dims)
         self.q = nn.Linear(fc2_dims, 1)
         f3 = 0.003
-        T.nn.init.uniform_(self.q.weight.data, -f3, f3)
-        T.nn.init.uniform_(self.q.bias.data, -f3, f3)
+        # T.nn.init.uniform_(self.q.weight.data, -f3, f3)
+        # T.nn.init.uniform_(self.q.bias.data, -f3, f3)
 
         self.optimizer = optim.Adam(self.parameters(), lr=beta)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
@@ -118,31 +118,27 @@ class CriticNetwork(nn.Module):
 
 
 class ActorNetwork(nn.Module):
-    def __init__(self, alpha, input_dims, fc1_dims, fc2_dims, n_actions, name,
+    def __init__(self, alpha, input_dims, action_dims, fc1_dims, fc2_dims, name,
                  chkpt_dir='checkpoints/ddpg'):
         super(ActorNetwork, self).__init__()
-        self.input_dims = input_dims
-        self.fc1_dims = fc1_dims
-        self.fc2_dims = fc2_dims
-        self.n_actions = n_actions
         self.checkpoint_file = os.path.join(chkpt_dir, name)
 
-        self.fc1 = nn.Linear(*self.input_dims, self.fc1_dims)
+        self.fc1 = nn.Linear(*input_dims, fc1_dims)
         f1 = 1. / np.sqrt(self.fc1.weight.data.size()[0])
-        T.nn.init.uniform_(self.fc1.weight.data, -f1, f1)
-        T.nn.init.uniform_(self.fc1.bias.data, -f1, f1)
-        self.bn1 = nn.LayerNorm(self.fc1_dims)
+        # T.nn.init.uniform_(self.fc1.weight.data, -f1, f1)
+        # T.nn.init.uniform_(self.fc1.bias.data, -f1, f1)
+        self.bn1 = nn.LayerNorm(fc1_dims)
 
-        self.fc2 = nn.Linear(self.fc1_dims, self.fc2_dims)
+        self.fc2 = nn.Linear(fc1_dims, fc2_dims)
         f2 = 1. / np.sqrt(self.fc2.weight.data.size()[0])
-        T.nn.init.uniform_(self.fc2.weight.data, -f2, f2)
-        T.nn.init.uniform_(self.fc2.bias.data, -f2, f2)
-        self.bn2 = nn.LayerNorm(self.fc2_dims)
+        # T.nn.init.uniform_(self.fc2.weight.data, -f2, f2)
+        # T.nn.init.uniform_(self.fc2.bias.data, -f2, f2)
+        self.bn2 = nn.LayerNorm(fc2_dims)
 
-        self.mu = nn.Linear(self.fc2_dims, self.n_actions)
+        self.mu = nn.Linear(fc2_dims, *action_dims)
         f3 = 0.003
-        T.nn.init.uniform_(self.mu.weight.data, -f3, f3)
-        T.nn.init.uniform_(self.mu.bias.data, -f3, f3)
+        # T.nn.init.uniform_(self.mu.weight.data, -f3, f3)
+        # T.nn.init.uniform_(self.mu.bias.data, -f3, f3)
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
@@ -170,29 +166,26 @@ class ActorNetwork(nn.Module):
 
 
 class Agent(object):
-    def __init__(self, alpha, beta, input_dims, tau, gamma=0.99,
-                 n_actions=2, max_size=1000000, layer1_size=400,
-                 layer2_size=300, batch_size=64):
+    def __init__(self, alpha, beta, input_dims, action_dims, tau, gamma=0.99,
+                 max_size=1000000, layer1_size=400, layer2_size=300, batch_size=64):
         self.gamma = gamma
         self.tau = tau
-        self.memory = ReplayBuffer(max_size, input_dims, n_actions)
+        self.memory = ReplayBuffer(max_size, input_dims, action_dims)
         self.batch_size = batch_size
 
-        self.actor = ActorNetwork(alpha, input_dims, layer1_size,
-                                  layer2_size, n_actions=n_actions,
-                                  name='actor')
-        self.critic = CriticNetwork(beta, input_dims, layer1_size,
-                                    layer2_size, n_actions=n_actions,
-                                    name='critic')
+        self.actor = ActorNetwork(alpha, input_dims, action_dims,
+                                  layer1_size, layer2_size, name='actor')
+        self.critic = CriticNetwork(beta, input_dims, action_dims,
+                                    layer1_size, layer2_size, name='critic')
 
-        self.target_actor = ActorNetwork(alpha, input_dims, layer1_size,
-                                         layer2_size, n_actions=n_actions,
+        self.target_actor = ActorNetwork(alpha, input_dims, action_dims,
+                                         layer1_size, layer2_size, 
                                          name='target_actor')
-        self.target_critic = CriticNetwork(beta, input_dims, layer1_size,
-                                           layer2_size, n_actions=n_actions,
+        self.target_critic = CriticNetwork(beta, input_dims, action_dims,
+                                           layer1_size, layer2_size, 
                                            name='target_critic')
 
-        self.noise = OUActionNoise(mu=np.zeros(n_actions))
+        self.noise = OUActionNoise(mu=np.zeros(action_dims))
 
         self.update_network_parameters(tau=1)
 
@@ -200,10 +193,12 @@ class Agent(object):
         self.actor.eval()
         observation = T.tensor(observation, dtype=T.float).to(self.actor.device)
         mu = self.actor.forward(observation).to(self.actor.device)
-        mu_prime = mu + T.tensor(self.noise(),
-                                 dtype=T.float).to(self.actor.device)
+        mu = mu + T.tensor(self.noise(),
+                                dtype=T.float).to(self.actor.device)
+        # print(sum(mu)/len(mu))
+        mu = F.softmax(mu, -1)
         self.actor.train()
-        return mu_prime.detach().cpu().numpy()
+        return mu.detach().cpu().numpy()
 
     def remember(self, state, action, reward, new_state, done):
         self.memory.store_transition(state, action, reward, new_state, done)
