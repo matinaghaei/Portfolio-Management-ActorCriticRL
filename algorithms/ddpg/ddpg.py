@@ -49,7 +49,7 @@ class DDPG:
             if validation_wealth > max_wealth:
                 self.agent.save_models()
             max_wealth = max(max_wealth, validation_wealth)
-            if validation_history[-2:].count(max_wealth - 1000000) == 0:
+            if validation_history[-5:].count(max_wealth - 1000000) == 0:
                 break
             # if iteration == 10:
             #     break
@@ -62,7 +62,7 @@ class DDPG:
         add_hline(buy_hold_final, 'Buy&Hold')
         add_curve(training_history, 'DDPG')
         save_plot(filename=self.figure_dir + '/training.png',
-                  title=f'Training - {self.intervals['training'][0]} to {self.intervals['training'][1]}',
+                  title=f"Training - {self.intervals['training'][0]} to {self.intervals['training'][1]}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['validation'])
@@ -70,7 +70,7 @@ class DDPG:
         add_hline(buy_hold_final, 'Buy&Hold')
         add_curve(validation_history, 'DDPG')
         save_plot(filename=self.figure_dir + '/validation.png',
-                  title=f'Validation - {self.intervals['validation'][0]} to {self.intervals['valiation'][1]}',
+                  title=f"Validation - {self.intervals['validation'][0]} to {self.intervals['validation'][1]}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
     def validate(self, verbose=False):
@@ -106,5 +106,5 @@ class DDPG:
 
         add_curve(return_history, 'DDPG')
         save_plot(self.figure_dir + '/testing.png',
-                  title=f'Testing - from {self.intervals['testing'][0]} to {self.intervals['testing'][1]}',
+                  title=f"Testing - from {self.intervals['testing'][0]} to {self.intervals['testing'][1]}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')

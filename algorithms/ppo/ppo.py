@@ -63,7 +63,7 @@ class PPO:
         add_hline(buy_hold_final, 'Buy&Hold')
         add_curve(training_history, 'PPO')
         save_plot(filename=self.figure_dir + '/training.png',
-                  title=f'Training - {self.intervals['training'][0]} to {self.intervals['training'][1]}',
+                  title=f"Training - {self.intervals['training'][0]} to {self.intervals['training'][1]}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['validation'])
@@ -71,7 +71,7 @@ class PPO:
         add_hline(buy_hold_final, 'Buy&Hold')
         add_curve(validation_history, 'PPO')
         save_plot(filename=self.figure_dir + '/validation.png',
-                  title=f'Validation - {self.intervals['validation'][0]} to {self.intervals['valiation'][1]}',
+                  title=f"Validation - {self.intervals['validation'][0]} to {self.intervals['validation'][1]}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
     def validate(self, verbose=False):
@@ -110,5 +110,5 @@ class PPO:
 
         add_curve(return_history, 'PPO')
         save_plot(self.figure_dir + '/testing.png',
-                  title=f'Testing - {self.intervals['testing'][0]} to {self.intervals['testing'][1]}',
+                  title=f"Testing - {self.intervals['testing'][0]} to {self.intervals['testing'][1]}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')
