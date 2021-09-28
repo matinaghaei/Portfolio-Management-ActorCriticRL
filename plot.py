@@ -12,10 +12,13 @@ def add_curve(scores, label, x=None):
         x = [int(i+1) for i in range(N)]
     plt.plot(x, scores, label=label)
 
+def add_hline(value, label=None):
+    plt.axhline(value, color='black', linestyle='--', label=label)
 
-def save_plot(filename, x_label, y_label):
+def save_plot(filename, title, x_label, y_label):
     bottom, top = plt.ylim()
     plt.ylim(ymin=min(0, bottom))
+    plt.title(title)
     plt.ylabel(y_label)
     plt.xlabel(x_label)
     plt.legend(loc='best')

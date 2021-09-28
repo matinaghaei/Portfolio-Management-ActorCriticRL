@@ -1,6 +1,6 @@
 from env.environment import PortfolioEnv
 from algorithms.ppo.agent import Agent
-from plot import add_curve, save_plot
+from plot import add_curve, add_hline, save_plot
 
 
 class PPO:
@@ -60,16 +60,18 @@ class PPO:
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['training'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
-        add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
-        add_curve(training_history, 'PPO training')
+        add_hline(buy_hold_final, 'Buy&Hold')
+        add_curve(training_history, 'PPO')
         save_plot(filename=self.figure_dir + '/training.png',
+                  title=f'Training - {self.intervals['training'][0]} to {self.intervals['training'][1]}',
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['validation'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
-        add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
-        add_curve(validation_history, 'PPO validation')
+        add_hline(buy_hold_final, 'Buy&Hold')
+        add_curve(validation_history, 'PPO')
         save_plot(filename=self.figure_dir + '/validation.png',
+                  title=f'Validation - {self.intervals['validation'][0]} to {self.intervals['valiation'][1]}',
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
     def validate(self, verbose=False):
@@ -87,7 +89,7 @@ class PPO:
     def test(self):
         return_history = []
         buy_hold_history = self.env.buy_hold_history(*self.intervals['testing'])
-        add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy & Hold')
+        add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy&Hold')
         n_steps = 0
 
         observation = self.env.reset(*self.intervals['testing'])
@@ -106,5 +108,7 @@ class PPO:
             return_history.append(wealth - 1000000)
         self.agent.memory.clear_memory()
 
-        add_curve(return_history, 'PPO testing')
-        save_plot(self.figure_dir + '/testing.png', x_label='Days', y_label='Cumulative Return (Dollars)')
+        add_curve(return_history, 'PPO')
+        save_plot(self.figure_dir + '/testing.png',
+                  title=f'Testing - {self.intervals['testing'][0]} to {self.intervals['testing'][1]}',
+                  x_label='Days', y_label='Cumulative Return (Dollars)')

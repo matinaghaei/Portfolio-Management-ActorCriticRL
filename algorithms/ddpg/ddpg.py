@@ -1,7 +1,7 @@
 from env.environment import PortfolioEnv
 from algorithms.ddpg.agent import Agent
 import numpy as np
-from plot import add_curve, save_plot
+from plot import add_curve, add_hline, save_plot
 
 
 class DDPG:
@@ -49,7 +49,7 @@ class DDPG:
             if validation_wealth > max_wealth:
                 self.agent.save_models()
             max_wealth = max(max_wealth, validation_wealth)
-            if validation_history[-5:].count(max_wealth - 1000000) == 0:
+            if validation_history[-2:].count(max_wealth - 1000000) == 0:
                 break
             # if iteration == 10:
             #     break
@@ -59,16 +59,18 @@ class DDPG:
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['training'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
-        add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
-        add_curve(training_history, 'DDPG training')
+        add_hline(buy_hold_final, 'Buy&Hold')
+        add_curve(training_history, 'DDPG')
         save_plot(filename=self.figure_dir + '/training.png',
+                  title=f'Training - {self.intervals['training'][0]} to {self.intervals['training'][1]}',
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['validation'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
-        add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
-        add_curve(validation_history, 'DDPG validation')
+        add_hline(buy_hold_final, 'Buy&Hold')
+        add_curve(validation_history, 'DDPG')
         save_plot(filename=self.figure_dir + '/validation.png',
+                  title=f'Validation - {self.intervals['validation'][0]} to {self.intervals['valiation'][1]}',
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
     def validate(self, verbose=False):
@@ -86,7 +88,7 @@ class DDPG:
     def test(self):
         return_history = []
         buy_hold_history = self.env.buy_hold_history(*self.intervals['testing'])
-        add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy & Hold')
+        add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy&Hold')
 
         observation = self.env.reset(*self.intervals['testing'])
         done = False
@@ -102,5 +104,7 @@ class DDPG:
             return_history.append(wealth - 1000000)
         self.agent.memory.clear_buffer()
 
-        add_curve(return_history, 'DDPG testing')
-        save_plot(self.figure_dir + '/testing.png', x_label='Days', y_label='Cumulative Return (Dollars)')
+        add_curve(return_history, 'DDPG')
+        save_plot(self.figure_dir + '/testing.png',
+                  title=f'Testing - from {self.intervals['testing'][0]} to {self.intervals['testing'][1]}',
+                  x_label='Days', y_label='Cumulative Return (Dollars)')

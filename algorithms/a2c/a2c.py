@@ -1,7 +1,7 @@
 from env.environment import PortfolioEnv
 from algorithms.a2c.agent import ActorCritic, Agent
 from torch.multiprocessing import Pipe, Lock
-from plot import add_curve, save_plot
+from plot import add_curve, add_hline, save_plot
 
 
 class A2C:
@@ -71,17 +71,19 @@ class A2C:
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['training'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
-        add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
+        add_hline(buy_hold_final, 'Buy&Hold')
         for i in range(self.n_agents):
-            add_curve(training_history[i], f'A2C training - worker {i}')
+            add_curve(training_history[i], f'A2C - worker {i}')
         save_plot(filename=self.figure_dir + '/training.png',
+                  title=f'Training - {self.intervals['training'][0]} to {self.intervals['training'][1]}',
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['validation'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
-        add_curve([buy_hold_final for i in range(iteration)], 'Buy & Hold')
-        add_curve(validation_history, 'A2C validation')
+        add_hline(buy_hold_final, 'Buy&Hold')
+        add_curve(validation_history, 'A2C')
         save_plot(filename=self.figure_dir + '/validation.png',
+                  title=f'Validation - {self.intervals['validation'][0]} to {self.intervals['validation'][1]}',
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
     def validate(self, verbose=False):
@@ -99,7 +101,7 @@ class A2C:
     def test(self):
         return_history = []
         buy_hold_history = self.env.buy_hold_history(*self.intervals['testing'])
-        add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy & Hold')
+        add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy&Hold')
 
         done = False
         observation = self.env.reset(*self.intervals['testing'])
@@ -121,5 +123,7 @@ class A2C:
                   f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
             return_history.append(wealth - 1000000)
 
-        add_curve(return_history, 'A2C testing')
-        save_plot(self.figure_dir + '/testing.png', x_label='Days', y_label='Cumulative Return (Dollars)')
+        add_curve(return_history, 'A2C')
+        save_plot(self.figure_dir + '/testing.png',
+                  title=f'Testing - {self.intervals['testing'][0]} to {self.intervals['testing'][1]}',
+                  x_label='Days', y_label='Cumulative Return (Dollars)')
