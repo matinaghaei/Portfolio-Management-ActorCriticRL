@@ -4,29 +4,36 @@ from algorithms.ppo.ppo import PPO
 import plot
 import torch.multiprocessing as mp
 
-# intervals = {'training': ('2008-12-31', '2015-09-30'),
-#              'validation': ('2015-10-01', '2015-12-31'),
-#              'testing': ('2016-01-04', '2021-08-04')}
-
-intervals = {'training': ('2008-03-19', '2017-09-05'),
-             'validation': ('2017-09-06', '2019-09-17'),
-             'testing': ('2019-09-18', '2021-09-27')}
-
 
 def main():
 
     plot.initialize()
     mp.set_start_method('spawn')
 
-    ddpg = DDPG(intervals)
-    ddpg.train()
-    ddpg.test()
+    train_eval = ['old', 'new']
+    bn_drop = ['only bn', 'only drop', 'bn drop']
+    action_input_layer = ['nothing', 'bn drop']
+    state_activation = [False, True]
+    action_activation = [True, False]
+    
+    for te in train_eval:
+        for bd in bn_drop:
+            for ail in action_input_layer:
+                for sa in state_activation:
+                    for aa in action_activation:
+                        for i in range(5):
+                            ddpg = DDPG(layer1_size=400, layer2_size=300, layer3_size=None,
+                                        action_interpret='portfolio', state_type='only prices', djia_year=2019,
+                                        train_eval=te, bn_drop=bd, action_input_layer=ail,
+                                        state_activation=sa, action_activation=aa, repeat=i)
+                            ddpg.train()
+                            ddpg.test(verbose=False)
 
-    # ppo = PPO(intervals)
+    # ppo = PPO()
     # ppo.train(verbose=True)
     # ppo.test()
 
-    # a2c = A2C(intervals, n_agents=1)
+    # a2c = A2C(n_agents=1)
     # a2c.train(verbose=True)
     # a2c.test()
 

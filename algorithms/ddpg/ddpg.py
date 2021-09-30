@@ -2,19 +2,32 @@ from env.environment import PortfolioEnv
 from algorithms.ddpg.agent import Agent
 import numpy as np
 from plot import add_curve, add_hline, save_plot
+import os
 
 
 class DDPG:
 
-    def __init__(self, intervals, load=False, alpha=0.000025, beta=0.00025, tau=0.001,
-                 batch_size=64, layer1_size=400, layer2_size=300):
+    def __init__(self, load=False, alpha=0.000025, beta=0.00025, tau=0.001,
+                 batch_size=64, layer1_size=400, layer2_size=300, layer3_size=None,
+                 action_interpret='portfolio', state_type='only prices', djia_year=2019,
+                 train_eval='new', bn_drop='only bn', action_input_layer='nothing',
+                 state_activation=False, action_activation=True, repeat=0):
 
-        self.intervals = intervals
-        self.figure_dir = 'plots/ddpg'
-        self.env = PortfolioEnv(action_scale=1000)
+        self.figure_dir = f'plots/ddpg/{train_eval}_{bn_drop}_{action_input_layer}_{state_activation}_{action_activation}'
+        os.makedirs(self.figure_dir, exist_ok=True)
+        self.repeat = repeat
+        self.env = PortfolioEnv(action_scale=1000, action_interpret=action_interpret,
+                                state_type=state_type, djia_year=djia_year)
+        if djia_year == 2019:
+            self.intervals = self.env.get_intervals(train_ratio=0.7, valid_ratio=0.15, test_ratio=0.15)
+        elif djia_year == 2012:
+            self.intervals = self.env.get_intervals(train_ratio=0.9, valid_ratio=0.05, test_ratio=0.05)
         self.agent = Agent(alpha=alpha, beta=beta, input_dims=self.env.state_shape(), 
                            action_dims=self.env.action_shape(), tau=tau, batch_size=batch_size, 
-                           layer1_size=layer1_size, layer2_size=layer2_size)
+                           layer1_size=layer1_size, layer2_size=layer2_size, layer3_size=layer3_size,
+                           action_interpret=action_interpret, train_eval=train_eval, bn_drop=bn_drop,
+                           action_input_layer=action_input_layer, state_activation=state_activation,
+                           action_activation=action_activation)
         if load:
             self.agent.load_models()
 
@@ -61,7 +74,7 @@ class DDPG:
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_hline(buy_hold_final, 'Buy&Hold')
         add_curve(training_history, 'DDPG')
-        save_plot(filename=self.figure_dir + '/training.png',
+        save_plot(filename=self.figure_dir + f'/training_{self.repeat}.png',
                   title=f"Training - {self.intervals['training'][0]} to {self.intervals['training'][1]}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
@@ -69,7 +82,7 @@ class DDPG:
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_hline(buy_hold_final, 'Buy&Hold')
         add_curve(validation_history, 'DDPG')
-        save_plot(filename=self.figure_dir + '/validation.png',
+        save_plot(filename=self.figure_dir + f'/validation_{self.repeat}.png',
                   title=f"Validation - {self.intervals['validation'][0]} to {self.intervals['validation'][1]}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
@@ -85,7 +98,7 @@ class DDPG:
                       f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
         return wealth
 
-    def test(self):
+    def test(self, verbose=True):
         return_history = []
         buy_hold_history = self.env.buy_hold_history(*self.intervals['testing'])
         add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy&Hold')
@@ -98,13 +111,13 @@ class DDPG:
             self.agent.remember(observation, action, reward, observation_, int(done))
             self.agent.learn()
             observation = observation_
-
-            print(f"DDPG testing - Date: {info.date()},\tBalance: {int(self.env.get_balance())},\t"
-                  f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
+            if verbose:
+                print(f"DDPG testing - Date: {info.date()},\tBalance: {int(self.env.get_balance())},\t"
+                    f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
             return_history.append(wealth - 1000000)
         self.agent.memory.clear_buffer()
 
         add_curve(return_history, 'DDPG')
-        save_plot(self.figure_dir + '/testing.png',
+        save_plot(self.figure_dir + f'/testing_{self.repeat}.png',
                   title=f"Testing - from {self.intervals['testing'][0]} to {self.intervals['testing'][1]}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')

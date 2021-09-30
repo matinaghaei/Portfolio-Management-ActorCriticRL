@@ -6,13 +6,13 @@ from plot import add_curve, add_hline, save_plot
 
 class A2C:
 
-    def __init__(self, intervals, n_agents, load=False, alpha=1e-3, gamma=0.99, layer1_size=128, t_max=5):
+    def __init__(self, n_agents, load=False, alpha=1e-3, gamma=0.99, layer1_size=128, t_max=5):
 
-        self.intervals = intervals
         self.n_agents = n_agents
         self.figure_dir = 'plots/a2c'
         self.t_max = t_max
         self.env = PortfolioEnv()
+        self.intervals = self.env.get_intervals()
         self.network = ActorCritic(input_dims=self.env.state_shape(), action_dims=self.env.action_shape(),
                                    gamma=gamma, fc1_dims=layer1_size, lr=alpha)
         self.network.share_memory()

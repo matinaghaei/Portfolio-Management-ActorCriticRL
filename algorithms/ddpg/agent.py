@@ -66,29 +66,45 @@ class ReplayBuffer(object):
 
 
 class CriticNetwork(nn.Module):
-    def __init__(self, beta, input_dims, action_dims, fc1_dims, fc2_dims, name,
-                 chkpt_dir='checkpoints/ddpg'):
+    def __init__(self, beta, input_dims, action_dims, fc1_dims, fc2_dims, fc3_dims, name,
+                 bn_drop='only bn', action_input_layer='nothing', chkpt_dir='checkpoints/ddpg',
+                 state_activation=False, action_activation=True):
         super(CriticNetwork, self).__init__()
 
+        self.fc3_dims = fc3_dims
+        self.bn_drop = bn_drop
+        self.action_input_layer = action_input_layer
         self.checkpoint_file = os.path.join(chkpt_dir, name)
+        self.state_activation = state_activation
+        self.action_activation = action_activation
+
+        self.drop = nn.Dropout()
 
         self.fc1 = nn.Linear(*input_dims, fc1_dims)
-        f1 = 1. / np.sqrt(self.fc1.weight.data.size()[0])
+        # f1 = 1. / np.sqrt(self.fc1.weight.data.size()[0])
         # T.nn.init.uniform_(self.fc1.weight.data, -f1, f1)
         # T.nn.init.uniform_(self.fc1.bias.data, -f1, f1)
         self.bn1 = nn.LayerNorm(fc1_dims)
 
         self.fc2 = nn.Linear(fc1_dims, fc2_dims)
-        f2 = 1. / np.sqrt(self.fc2.weight.data.size()[0])
+        # f2 = 1. / np.sqrt(self.fc2.weight.data.size()[0])
         # T.nn.init.uniform_(self.fc2.weight.data, -f2, f2)
         # T.nn.init.uniform_(self.fc2.bias.data, -f2, f2)
         self.bn2 = nn.LayerNorm(fc2_dims)
 
-        self.action_value = nn.Linear(*action_dims, fc2_dims)
-        self.q = nn.Linear(fc2_dims, 1)
-        f3 = 0.003
-        # T.nn.init.uniform_(self.q.weight.data, -f3, f3)
-        # T.nn.init.uniform_(self.q.bias.data, -f3, f3)
+        if fc3_dims is None:
+            self.action_value = nn.Linear(*action_dims, fc2_dims)
+            self.bn3 = nn.LayerNorm(fc2_dims)
+            self.q = nn.Linear(fc2_dims, 1)
+            # f3 = 0.003
+            # T.nn.init.uniform_(self.q.weight.data, -f3, f3)
+            # T.nn.init.uniform_(self.q.bias.data, -f3, f3)
+        
+        else:
+            self.fc3 = nn.Linear(fc2_dims, fc3_dims)
+            self.bn3 = nn.LayerNorm(fc3_dims)
+            self.action_value = nn.Linear(*action_dims, fc3_dims)
+            self.q = nn.Linear(fc3_dims, 1)
 
         self.optimizer = optim.Adam(self.parameters(), lr=beta)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
@@ -97,15 +113,34 @@ class CriticNetwork(nn.Module):
 
     def forward(self, state, action):
         state_value = self.fc1(state)
-        state_value = self.bn1(state_value)
+        if self.bn_drop == 'only bn' or self.bn_drop == 'bn drop':
+            state_value = self.bn1(state_value)
         state_value = F.relu(state_value)
+        if self.bn_drop == 'only drop' or self.bn_drop == 'bn drop':
+            state_value = self.drop(state_value)
         state_value = self.fc2(state_value)
-        state_value = self.bn2(state_value)
-
-        action_value = F.relu(self.action_value(action))
+        if self.bn_drop == 'only bn' or self.bn_drop == 'bn drop':
+            state_value = self.bn2(state_value)
+        if self.state_activation:
+            state_value = F.relu(state_value)
+            if self.bn_drop == 'only drop' or self.bn_drop == 'bn drop':
+                state_value = self.drop(state_value)
+        if self.fc3_dims is not None:
+            state_value = F.relu(state_value)
+            state_value = self.fc3(state_value)
+            state_value = self.bn3(state_value)
+        
+        action_value = self.action_value(action)
+        if self.action_input_layer == 'bn_drop' and (self.bn_drop == 'only bn' or self.bn_drop == 'bn drop'):
+            action_value = self.bn3(action_value)
+        if self.action_activation:
+            action_value = F.relu(action_value)
+            if self.action_input_layer == 'bn_drop' and (self.bn_drop == 'only drop' or self.bn_drop == 'bn drop'):
+                action_value = self.drop(action_value)
         state_action_value = F.relu(T.add(state_value, action_value))
         state_action_value = self.q(state_action_value)
 
+        # print(state_action_value)
         return state_action_value
 
     def save_checkpoint(self):
@@ -118,27 +153,38 @@ class CriticNetwork(nn.Module):
 
 
 class ActorNetwork(nn.Module):
-    def __init__(self, alpha, input_dims, action_dims, fc1_dims, fc2_dims, name,
-                 chkpt_dir='checkpoints/ddpg'):
+    def __init__(self, alpha, input_dims, action_dims, fc1_dims, fc2_dims, fc3_dims, name,
+                 bn_drop='only bn', chkpt_dir='checkpoints/ddpg'):
         super(ActorNetwork, self).__init__()
+        
+        self.fc3_dims = fc3_dims
+        self.bn_drop = bn_drop
         self.checkpoint_file = os.path.join(chkpt_dir, name)
 
+        self.drop = nn.Dropout()
+
         self.fc1 = nn.Linear(*input_dims, fc1_dims)
-        f1 = 1. / np.sqrt(self.fc1.weight.data.size()[0])
+        # f1 = 1. / np.sqrt(self.fc1.weight.data.size()[0])
         # T.nn.init.uniform_(self.fc1.weight.data, -f1, f1)
         # T.nn.init.uniform_(self.fc1.bias.data, -f1, f1)
         self.bn1 = nn.LayerNorm(fc1_dims)
 
         self.fc2 = nn.Linear(fc1_dims, fc2_dims)
-        f2 = 1. / np.sqrt(self.fc2.weight.data.size()[0])
+        # f2 = 1. / np.sqrt(self.fc2.weight.data.size()[0])
         # T.nn.init.uniform_(self.fc2.weight.data, -f2, f2)
         # T.nn.init.uniform_(self.fc2.bias.data, -f2, f2)
         self.bn2 = nn.LayerNorm(fc2_dims)
 
-        self.mu = nn.Linear(fc2_dims, *action_dims)
-        f3 = 0.003
-        # T.nn.init.uniform_(self.mu.weight.data, -f3, f3)
-        # T.nn.init.uniform_(self.mu.bias.data, -f3, f3)
+        if fc3_dims is None:
+            self.mu = nn.Linear(fc2_dims, *action_dims)
+            # f3 = 0.003
+            # T.nn.init.uniform_(self.mu.weight.data, -f3, f3)
+            # T.nn.init.uniform_(self.mu.bias.data, -f3, f3)
+
+        else:
+            self.fc3 = nn.Linear(fc2_dims, fc3_dims)
+            self.bn3 = nn.LayerNorm(fc3_dims)
+            self.mu = nn.Linear(fc3_dims, *action_dims)
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
@@ -147,11 +193,21 @@ class ActorNetwork(nn.Module):
 
     def forward(self, state):
         x = self.fc1(state)
-        x = self.bn1(x)
+        if self.bn_drop == 'only bn' or self.bn_drop == 'bn drop':
+            x = self.bn1(x)
         x = F.relu(x)
+        if self.bn_drop == 'only drop' or self.bn_drop == 'bn drop':
+            x = self.drop(x)
         x = self.fc2(x)
-        x = self.bn2(x)
+        if self.bn_drop == 'only bn' or self.bn_drop == 'bn drop':
+            x = self.bn2(x)
         x = F.relu(x)
+        if self.bn_drop == 'only drop' or self.bn_drop == 'bn drop':
+            x = self.drop(x)
+        if self.fc3_dims is not None:
+            x = self.fc3(x)
+            x = self.bn3(x)
+            x = F.relu(x)
         x = self.mu(x)
 
         return x
@@ -167,23 +223,39 @@ class ActorNetwork(nn.Module):
 
 class Agent(object):
     def __init__(self, alpha, beta, input_dims, action_dims, tau, gamma=0.99,
-                 max_size=1000000, layer1_size=400, layer2_size=300, batch_size=64):
+                 max_size=1000000, layer1_size=400, layer2_size=300, layer3_size=None, 
+                 batch_size=64, action_interpret='portfolio', train_eval='new', bn_drop='only bn', 
+                 action_input_layer='nothing', state_activation=False, action_activation=True):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, action_dims)
         self.batch_size = batch_size
+        self.action_interpret = action_interpret
+        self.train_eval = train_eval
 
         self.actor = ActorNetwork(alpha, input_dims, action_dims,
-                                  layer1_size, layer2_size, name='actor')
+                                  layer1_size, layer2_size, layer3_size, 
+                                  name='actor', bn_drop=bn_drop)
         self.critic = CriticNetwork(beta, input_dims, action_dims,
-                                    layer1_size, layer2_size, name='critic')
+                                    layer1_size, layer2_size, layer3_size, name='critic', 
+                                    bn_drop=bn_drop, action_input_layer=action_input_layer,
+                                    state_activation=state_activation,
+                                    action_activation=action_activation)
 
         self.target_actor = ActorNetwork(alpha, input_dims, action_dims,
-                                         layer1_size, layer2_size, 
-                                         name='target_actor')
+                                         layer1_size, layer2_size, layer3_size,
+                                         name='target_actor', bn_drop=bn_drop)
         self.target_critic = CriticNetwork(beta, input_dims, action_dims,
-                                           layer1_size, layer2_size, 
-                                           name='target_critic')
+                                           layer1_size, layer2_size, layer3_size,
+                                           name='target_critic', bn_drop=bn_drop,
+                                           action_input_layer=action_input_layer,
+                                           state_activation=state_activation,
+                                           action_activation=action_activation)
+        if train_eval == 'new':
+            self.actor.train()
+            self.critic.train()
+            self.target_actor.eval()
+            self.target_critic.eval()
 
         self.noise = OUActionNoise(mu=np.zeros(action_dims))
 
@@ -195,8 +267,9 @@ class Agent(object):
         mu = self.actor.forward(observation).to(self.actor.device)
         mu = mu + T.tensor(self.noise(),
                                 dtype=T.float).to(self.actor.device)
-        # print(sum(mu)/len(mu))
-        mu = F.softmax(mu, -1)
+        # print(mu)
+        if self.action_interpret == 'portfolio':
+            mu = F.softmax(mu, -1)
         self.actor.train()
         return mu.detach().cpu().numpy()
 
@@ -215,9 +288,10 @@ class Agent(object):
         action = T.tensor(action, dtype=T.float).to(self.critic.device)
         state = T.tensor(state, dtype=T.float).to(self.critic.device)
 
-        self.target_actor.eval()
-        self.target_critic.eval()
-        self.critic.eval()
+        if self.train_eval == 'old':
+            self.target_actor.eval()
+            self.target_critic.eval()
+            self.critic.eval()
         target_actions = self.target_actor.forward(new_state)
         critic_value_ = self.target_critic.forward(new_state, target_actions)
         critic_value = self.critic.forward(state, action)
@@ -227,8 +301,9 @@ class Agent(object):
             target.append(reward[j] + self.gamma * critic_value_[j] * done[j])
         target = T.tensor(target).to(self.critic.device)
         target = target.view(self.batch_size, 1)
-
-        self.critic.train()
+        
+        if self.train_eval == 'old':
+            self.critic.train()
         self.critic.optimizer.zero_grad()
         critic_loss = F.mse_loss(target, critic_value)
         critic_loss.backward()
@@ -237,11 +312,14 @@ class Agent(object):
         self.critic.eval()
         self.actor.optimizer.zero_grad()
         mu = self.actor.forward(state)
-        self.actor.train()
+        if self.train_eval == 'old':
+            self.actor.train()
         actor_loss = -self.critic.forward(state, mu)
         actor_loss = T.mean(actor_loss)
         actor_loss.backward()
         self.actor.optimizer.step()
+        if self.train_eval == 'new':
+            self.critic.train()
 
         self.update_network_parameters()
 

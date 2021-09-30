@@ -5,13 +5,13 @@ from plot import add_curve, add_hline, save_plot
 
 class PPO:
 
-    def __init__(self, intervals, load=False, alpha=0.0003, n_epochs=4,
+    def __init__(self, load=False, alpha=0.0003, n_epochs=4,
                  batch_size=5, layer1_size=512, layer2_size=512, t_max=20):
 
-        self.intervals = intervals
         self.figure_dir = 'plots/ppo'
         self.t_max = t_max
         self.env = PortfolioEnv(action_scale=1000)
+        self.intervals = self.env.get_intervals()
 
         self.agent = Agent(action_dims=self.env.action_shape(), batch_size=batch_size, alpha=alpha,
                            n_epochs=n_epochs, input_dims=self.env.state_shape(),
