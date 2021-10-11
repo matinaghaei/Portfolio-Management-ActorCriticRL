@@ -29,7 +29,7 @@ class DDPG:
                            action_dims=self.env.action_shape(), tau=tau, batch_size=batch_size, 
                            layer1_size=layer1_size, layer2_size=layer2_size, layer3_size=layer3_size)
         if load:
-            self.agent.load_models()
+            self.agent.load_models(self.checkpoint_dir)
 
         np.random.seed(0)
 
@@ -62,7 +62,7 @@ class DDPG:
             if validation_wealth > max_wealth:
                 self.agent.save_models(self.checkpoint_dir)
             max_wealth = max(max_wealth, validation_wealth)
-            if validation_history[-5:].count(max_wealth - 1000000) == 0:
+            if validation_history[-5:].count(max_wealth - 1000000) != 1:
                 break
             if iteration == 30:
                 break

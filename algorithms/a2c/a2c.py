@@ -2,16 +2,25 @@ from env.environment import PortfolioEnv
 from algorithms.a2c.agent import ActorCritic, Agent
 from torch.multiprocessing import Pipe, Lock
 from plot import add_curve, add_hline, save_plot
+import os
 
 
 class A2C:
 
-    def __init__(self, n_agents, load=False, alpha=1e-3, gamma=0.99, layer1_size=128, t_max=5,
+    def __init__(self, n_agents, load=False, alpha=1e-3, gamma=0.99,
+                 layer1_size=128, layer2_size=None, layer3_size=None, t_max=5,
                  state_type='only prices', djia_year=2019, repeat=0):
 
         self.n_agents = n_agents
-        self.figure_dir = 'plots/a2c'
+        # self.figure_dir = f'plots/a2c'
+        # self.checkpoint_dir = None
+        self.figure_dir = f'plots/a2c/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}'
+        self.checkpoint_dir = f'checkpoints/a2c/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}'
+        os.makedirs(self.figure_dir, exist_ok=True)
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.t_max = t_max
+        self.state_type = state_type
+        self.djia_year = djia_year
         self.repeat = repeat
 
         self.env = PortfolioEnv(action_scale=1000, state_type=state_type, djia_year=djia_year)
@@ -22,9 +31,10 @@ class A2C:
         self.network = ActorCritic(input_dims=self.env.state_shape(), action_dims=self.env.action_shape(),
                                    gamma=gamma, fc1_dims=layer1_size, lr=alpha)
         self.network.share_memory()
-
+        self.network.train()
+        
         if load:
-            self.network.load_checkpoint()
+            self.network.load_checkpoint(self.checkpoint_dir)
 
     def train(self, verbose=False):
         training_history = [[] for i in range(self.n_agents)]
@@ -42,7 +52,9 @@ class A2C:
                              lock=lock,
                              name=f'worker {i}',
                              t_max=self.t_max,
-                             verbose=verbose) for i in range(self.n_agents)]
+                             verbose=verbose,
+                             state_type=self.state_type,
+                             djia_year=self.djia_year) for i in range(self.n_agents)]
             [w.start() for w in workers]
 
             self.network.done = False
@@ -67,13 +79,13 @@ class A2C:
             print(f"A2C validating - Iteration: {iteration},\tCumulative Return: {int(validation_wealth) - 1000000}")
             validation_history.append(validation_wealth - 1000000)
             if validation_wealth > max_wealth:
-                self.network.save_checkpoint()
+                self.network.save_checkpoint(self.checkpoint_dir)
             max_wealth = max(max_wealth, validation_wealth)
-            if validation_history[-5:].count(max_wealth - 1000000) == 0:
+            if validation_history[-5:].count(max_wealth - 1000000) != 1:
                 break
             iteration += 1
 
-        self.network.load_checkpoint()
+        self.network.load_checkpoint(self.checkpoint_dir)
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['training'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000

@@ -123,13 +123,11 @@ class CriticNetwork(nn.Module):
         return state_action_value
 
     def save_checkpoint(self, address=None):
-        print('... saving checkpoint ...')
         if address is None:
             address = self.checkpoint_dir
         T.save(self.state_dict(), f'{address}/{self.name}')
 
     def load_checkpoint(self, address=None):
-        print('... loading checkpoint ...')
         if address is None:
             address = self.checkpoint_dir
         self.load_state_dict(T.load(f'{address}/{self.name}'))
@@ -185,13 +183,11 @@ class ActorNetwork(nn.Module):
         return x
 
     def save_checkpoint(self, address=None):
-        print('... saving checkpoint ...')
         if address is None:
             address = self.checkpoint_dir
         T.save(self.state_dict(), f'{address}/{self.name}')
 
     def load_checkpoint(self, address=None):
-        print('... loading checkpoint ...')
         if address is None:
             address = self.checkpoint_dir
         self.load_state_dict(T.load(f'{address}/{self.name}'))
@@ -303,12 +299,14 @@ class Agent(object):
         self.target_actor.load_state_dict(actor_state_dict)
 
     def save_models(self, address=None):
+        print('... saving models ...')
         self.actor.save_checkpoint(address)
         self.target_actor.save_checkpoint(address)
         self.critic.save_checkpoint(address)
         self.target_critic.save_checkpoint(address)
 
     def load_models(self, address=None):
+        print('... loading models ...')
         self.actor.load_checkpoint(address)
         self.target_actor.load_checkpoint(address)
         self.critic.load_checkpoint(address)

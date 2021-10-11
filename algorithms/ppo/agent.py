@@ -55,51 +55,56 @@ class ActorNetwork(nn.Module):
                  fc1_dims=256, fc2_dims=256, chkpt_dir='checkpoints/ppo'):
         super(ActorNetwork, self).__init__()
 
-        self.checkpoint_file = os.path.join(chkpt_dir, 'actor')
+        self.checkpoint_dir = chkpt_dir
+        self.name = 'actor'
 
         self.drop = nn.Dropout()
 
         self.pi1 = nn.Linear(*input_dims, fc1_dims)
-        f1 = 1. / np.sqrt(self.pi1.weight.data.size()[0])
-        T.nn.init.uniform_(self.pi1.weight.data, -f1, f1)
-        T.nn.init.uniform_(self.pi1.bias.data, -f1, f1)
+        # f1 = 1. / np.sqrt(self.pi1.weight.data.size()[0])
+        # T.nn.init.uniform_(self.pi1.weight.data, -f1, f1)
+        # T.nn.init.uniform_(self.pi1.bias.data, -f1, f1)
         self.bn1 = nn.LayerNorm(fc1_dims)
 
         self.pi2 = nn.Linear(fc1_dims, fc2_dims)
-        f2 = 1. / np.sqrt(self.pi2.weight.data.size()[0])
-        T.nn.init.uniform_(self.pi2.weight.data, -f2, f2)
-        T.nn.init.uniform_(self.pi2.bias.data, -f2, f2)
+        # f2 = 1. / np.sqrt(self.pi2.weight.data.size()[0])
+        # T.nn.init.uniform_(self.pi2.weight.data, -f2, f2)
+        # T.nn.init.uniform_(self.pi2.bias.data, -f2, f2)
         self.bn2 = nn.LayerNorm(fc2_dims)
 
         self.mu = nn.Linear(fc2_dims, *action_dims)
-        f3 = 0.003
-        T.nn.init.uniform_(self.mu.weight.data, -f3, f3)
-        T.nn.init.uniform_(self.mu.bias.data, -f3, f3)
+        # f3 = 0.003
+        # T.nn.init.uniform_(self.mu.weight.data, -f3, f3)
+        # T.nn.init.uniform_(self.mu.bias.data, -f3, f3)
 
         self.var = nn.Linear(fc2_dims, *action_dims)
-        f4 = 0.003
-        T.nn.init.uniform_(self.var.weight.data, -f4, f4)
-        T.nn.init.uniform_(self.var.bias.data, -f4, f4)
+        # f4 = 0.003
+        # T.nn.init.uniform_(self.var.weight.data, -f4, f4)
+        # T.nn.init.uniform_(self.var.bias.data, -f4, f4)
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         self.to(self.device)
 
     def forward(self, state):
-        state = self.drop(F.relu(self.bn1(self.pi1(state))))
-        state = self.drop(F.relu(self.bn2(self.pi2(state))))
+        state = F.relu(self.bn1(self.pi1(state)))
+        # state = self.drop(state)
+        state = F.relu(self.bn2(self.pi2(state)))
+        # state = self.drop(state)
         mu = self.mu(state)
         var = F.softplus(self.var(state))
 
         return mu, var
 
-    def save_checkpoint(self):
-        print('... saving checkpoint ...')
-        T.save(self.state_dict(), self.checkpoint_file)
+    def save_checkpoint(self, address=None):
+        if address is None:
+            address = self.checkpoint_dir
+        T.save(self.state_dict(), f'{address}/{self.name}')
 
-    def load_checkpoint(self):
-        print('... loading checkpoint ...')
-        self.load_state_dict(T.load(self.checkpoint_file))
+    def load_checkpoint(self, address=None):
+        if address is None:
+            address = self.checkpoint_dir
+        self.load_state_dict(T.load(f'{address}/{self.name}'))
 
 
 class CriticNetwork(nn.Module):
@@ -107,43 +112,50 @@ class CriticNetwork(nn.Module):
                  chkpt_dir='checkpoints/ppo'):
         super(CriticNetwork, self).__init__()
 
-        self.checkpoint_file = os.path.join(chkpt_dir, 'critic')
+        self.checkpoint_dir = chkpt_dir
+        self.name = 'critic'
 
         self.drop = nn.Dropout()
 
         self.v1 = nn.Linear(*input_dims, fc1_dims)
-        f1 = 1. / np.sqrt(self.v1.weight.data.size()[0])
-        T.nn.init.uniform_(self.v1.weight.data, -f1, f1)
-        T.nn.init.uniform_(self.v1.bias.data, -f1, f1)
+        # f1 = 1. / np.sqrt(self.v1.weight.data.size()[0])
+        # T.nn.init.uniform_(self.v1.weight.data, -f1, f1)
+        # T.nn.init.uniform_(self.v1.bias.data, -f1, f1)
         self.bn1 = nn.LayerNorm(fc1_dims)
 
         self.v2 = nn.Linear(fc1_dims, fc2_dims)
-        f2 = 1. / np.sqrt(self.v2.weight.data.size()[0])
-        T.nn.init.uniform_(self.v2.weight.data, -f2, f2)
-        T.nn.init.uniform_(self.v2.bias.data, -f2, f2)
+        # f2 = 1. / np.sqrt(self.v2.weight.data.size()[0])
+        # T.nn.init.uniform_(self.v2.weight.data, -f2, f2)
+        # T.nn.init.uniform_(self.v2.bias.data, -f2, f2)
         self.bn2 = nn.LayerNorm(fc2_dims)
 
         self.v = nn.Linear(fc2_dims, 1)
-        f3 = 0.003
-        T.nn.init.uniform_(self.v.weight.data, -f3, f3)
-        T.nn.init.uniform_(self.v.bias.data, -f3, f3)
+        # f3 = 0.003
+        # T.nn.init.uniform_(self.v.weight.data, -f3, f3)
+        # T.nn.init.uniform_(self.v.bias.data, -f3, f3)
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         self.to(self.device)
 
     def forward(self, state):
-        value = self.drop(F.relu(self.bn1(self.v1(state))))
-        value = self.drop(F.relu(self.bn2(self.v2(value))))
+        value = F.relu(self.bn1(self.v1(state)))
+        # value = self.drop(value)
+        value = F.relu(self.bn2(self.v2(value)))
+        # value = self.drop(value)
         value = self.v(value)
 
         return value
 
-    def save_checkpoint(self):
-        T.save(self.state_dict(), self.checkpoint_file)
+    def save_checkpoint(self, address=None):
+        if address is None:
+            address = self.checkpoint_dir
+        T.save(self.state_dict(), f'{address}/{self.name}')
 
-    def load_checkpoint(self):
-        self.load_state_dict(T.load(self.checkpoint_file))
+    def load_checkpoint(self, address=None):
+        if address is None:
+            address = self.checkpoint_dir
+        self.load_state_dict(T.load(f'{address}/{self.name}'))
 
 
 class Agent:
@@ -156,20 +168,24 @@ class Agent:
 
         self.actor = ActorNetwork(action_dims, input_dims, alpha, fc1_dims, fc2_dims)
         self.critic = CriticNetwork(input_dims, alpha, fc1_dims, fc2_dims)
+
+        self.actor.train()
+        self.critic.train()
+
         self.memory = PPOMemory(batch_size)
 
     def remember(self, state, action, probs, vals, reward, done):
         self.memory.store_memory(state, action, probs, vals, reward, done)
 
-    def save_models(self):
+    def save_models(self, address=None):
         print('... saving models ...')
-        self.actor.save_checkpoint()
-        self.critic.save_checkpoint()
+        self.actor.save_checkpoint(address)
+        self.critic.save_checkpoint(address)
 
-    def load_models(self):
+    def load_models(self, address=None):
         print('... loading models ...')
-        self.actor.load_checkpoint()
-        self.critic.load_checkpoint()
+        self.actor.load_checkpoint(address)
+        self.critic.load_checkpoint(address)
 
     def choose_action(self, observation):
         self.actor.eval()
@@ -233,7 +249,7 @@ class Agent:
 
                 entropy_loss = -dist.entropy().mean()
 
-                total_loss = actor_loss + 0.5 * critic_loss + 0.0001 * entropy_loss
+                total_loss = actor_loss + 0.5 * critic_loss + 0 * entropy_loss
                 self.actor.optimizer.zero_grad()
                 self.critic.optimizer.zero_grad()
                 total_loss.backward()

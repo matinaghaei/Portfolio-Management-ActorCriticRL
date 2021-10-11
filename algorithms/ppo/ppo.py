@@ -1,15 +1,21 @@
 from env.environment import PortfolioEnv
 from algorithms.ppo.agent import Agent
 from plot import add_curve, add_hline, save_plot
+import os
 
 
 class PPO:
 
     def __init__(self, load=False, alpha=0.0003, n_epochs=4,
-                 batch_size=5, layer1_size=512, layer2_size=512,
+                 batch_size=5, layer1_size=512, layer2_size=512, layer3_size=None,
                  t_max=20, state_type='only prices', djia_year=2019, repeat=0):
 
-        self.figure_dir = 'plots/ppo'
+        # self.figure_dir = f'plots/ppo'
+        # self.checkpoint_dir = None
+        self.figure_dir = f'plots/ppo/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}'
+        self.checkpoint_dir = f'checkpoints/ppo/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}'
+        os.makedirs(self.figure_dir, exist_ok=True)
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.t_max = t_max
         self.repeat = repeat
 
@@ -23,7 +29,7 @@ class PPO:
                            fc1_dims=layer1_size, fc2_dims=layer2_size)
 
         if load:
-            self.agent.load_models()
+            self.agent.load_models(self.checkpoint_dir)
 
     def train(self, verbose=False):
         training_history = []
@@ -55,13 +61,13 @@ class PPO:
             print(f"PPO validating - Iteration: {iteration},\tCumulative Return: {int(validation_wealth) - 1000000}")
             validation_history.append(validation_wealth - 1000000)
             if validation_wealth > max_wealth:
-                self.agent.save_models()
+                self.agent.save_models(self.checkpoint_dir)
             max_wealth = max(max_wealth, validation_wealth)
-            if validation_history[-5:].count(max_wealth - 1000000) == 0:
+            if validation_history[-5:].count(max_wealth - 1000000) != 1:
                 break
             iteration += 1
 
-        self.agent.load_models()
+        self.agent.load_models(self.checkpoint_dir)
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['training'])
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
