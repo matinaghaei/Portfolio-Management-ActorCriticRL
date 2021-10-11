@@ -1,4 +1,6 @@
 import numpy as np
+import torch as T
+import torch.nn.functional as F
 from env.loader import Loader
 from finta import TA
 
@@ -147,7 +149,8 @@ class PortfolioEnv:
     def step(self, action):
         
         if self.action_interpret == 'portfolio':
-            new_shares = np.floor(self.get_wealth() * np.array(action[1:]) / self.prices)
+            action = F.softmax(T.tensor(action, dtype=T.float), -1).numpy()
+            new_shares = np.floor(self.get_wealth() * action[1:] / self.prices)
             actions = new_shares - self.shares
             cost = self.prices.dot(actions)
             self.shares = self.shares + actions.astype(np.int)
@@ -156,8 +159,6 @@ class PortfolioEnv:
             new_prices = self.get_prices()
             reward = (new_prices - self.prices).dot(self.shares)
             self.prices = new_prices
-
-            return self.get_state(), reward, self.is_finished(), self.get_date(), self.get_wealth()
         
         if self.action_interpret == 'transactions':
             actions = np.maximum(np.round(np.array(action) * self.action_scale), -self.shares)
@@ -171,6 +172,8 @@ class PortfolioEnv:
             new_prices = self.get_prices()
             reward = (new_prices - self.prices).dot(self.shares)
             self.prices = new_prices
+
+        return self.get_state(), reward, self.is_finished(), self.get_date(), self.get_wealth()
 
     # def step(self, action):
     #     actions = np.maximum(np.round(np.array(action) * self.action_scale), -self.shares)

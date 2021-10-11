@@ -18,6 +18,7 @@ def add_hline(value, label=None):
 def save_plot(filename, title, x_label, y_label):
     bottom, top = plt.ylim()
     plt.ylim(ymin=min(0, bottom))
+    plt.ylim(ymax=max(0, top))
     plt.title(title)
     plt.ylabel(y_label)
     plt.xlabel(x_label)

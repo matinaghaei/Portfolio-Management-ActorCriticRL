@@ -57,6 +57,8 @@ class ActorNetwork(nn.Module):
 
         self.checkpoint_file = os.path.join(chkpt_dir, 'actor')
 
+        self.drop = nn.Dropout()
+
         self.pi1 = nn.Linear(*input_dims, fc1_dims)
         f1 = 1. / np.sqrt(self.pi1.weight.data.size()[0])
         T.nn.init.uniform_(self.pi1.weight.data, -f1, f1)
@@ -84,8 +86,8 @@ class ActorNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, state):
-        state = F.relu(self.bn1(self.pi1(state)))
-        state = F.relu(self.bn2(self.pi2(state)))
+        state = self.drop(F.relu(self.bn1(self.pi1(state))))
+        state = self.drop(F.relu(self.bn2(self.pi2(state))))
         mu = self.mu(state)
         var = F.softplus(self.var(state))
 
@@ -106,6 +108,8 @@ class CriticNetwork(nn.Module):
         super(CriticNetwork, self).__init__()
 
         self.checkpoint_file = os.path.join(chkpt_dir, 'critic')
+
+        self.drop = nn.Dropout()
 
         self.v1 = nn.Linear(*input_dims, fc1_dims)
         f1 = 1. / np.sqrt(self.v1.weight.data.size()[0])
@@ -129,8 +133,8 @@ class CriticNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, state):
-        value = F.relu(self.bn1(self.v1(state)))
-        value = F.relu(self.bn2(self.v2(value)))
+        value = self.drop(F.relu(self.bn1(self.v1(state))))
+        value = self.drop(F.relu(self.bn2(self.v2(value))))
         value = self.v(value)
 
         return value
@@ -168,6 +172,8 @@ class Agent:
         self.critic.load_checkpoint()
 
     def choose_action(self, observation):
+        self.actor.eval()
+        self.critic.eval()
         state = T.tensor([observation], dtype=T.float).to(self.actor.device)
 
         mu, var = self.actor(state)
@@ -179,6 +185,8 @@ class Agent:
         action = T.squeeze(action).detach().cpu().numpy().tolist()
         value = T.squeeze(value).item()
 
+        self.actor.train()
+        self.critic.train()
         return action, probs, value
 
     def learn(self):

@@ -6,13 +6,19 @@ from plot import add_curve, add_hline, save_plot
 
 class A2C:
 
-    def __init__(self, n_agents, load=False, alpha=1e-3, gamma=0.99, layer1_size=128, t_max=5):
+    def __init__(self, n_agents, load=False, alpha=1e-3, gamma=0.99, layer1_size=128, t_max=5,
+                 state_type='only prices', djia_year=2019, repeat=0):
 
         self.n_agents = n_agents
         self.figure_dir = 'plots/a2c'
         self.t_max = t_max
-        self.env = PortfolioEnv()
-        self.intervals = self.env.get_intervals()
+        self.repeat = repeat
+
+        self.env = PortfolioEnv(action_scale=1000, state_type=state_type, djia_year=djia_year)
+        if djia_year == 2019:
+            self.intervals = self.env.get_intervals(train_ratio=0.7, valid_ratio=0.15, test_ratio=0.15)
+        elif djia_year == 2012:
+            self.intervals = self.env.get_intervals(train_ratio=0.9, valid_ratio=0.05, test_ratio=0.05)
         self.network = ActorCritic(input_dims=self.env.state_shape(), action_dims=self.env.action_shape(),
                                    gamma=gamma, fc1_dims=layer1_size, lr=alpha)
         self.network.share_memory()
@@ -74,7 +80,7 @@ class A2C:
         add_hline(buy_hold_final, 'Buy&Hold')
         for i in range(self.n_agents):
             add_curve(training_history[i], f'A2C - worker {i}')
-        save_plot(filename=self.figure_dir + '/training.png',
+        save_plot(filename=self.figure_dir + f'/{self.repeat}0_training.png',
                   title=f"Training - {self.intervals['training'][0]} to {self.intervals['training'][1]}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
@@ -82,7 +88,7 @@ class A2C:
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_hline(buy_hold_final, 'Buy&Hold')
         add_curve(validation_history, 'A2C')
-        save_plot(filename=self.figure_dir + '/validation.png',
+        save_plot(filename=self.figure_dir + f'/{self.repeat}1_validation.png',
                   title=f"Validation - {self.intervals['validation'][0]} to {self.intervals['validation'][1]}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
@@ -124,6 +130,6 @@ class A2C:
             return_history.append(wealth - 1000000)
 
         add_curve(return_history, 'A2C')
-        save_plot(self.figure_dir + '/testing.png',
+        save_plot(self.figure_dir + f'/{self.repeat}2_testing.png',
                   title=f"Testing - {self.intervals['testing'][0]} to {self.intervals['testing'][1]}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')

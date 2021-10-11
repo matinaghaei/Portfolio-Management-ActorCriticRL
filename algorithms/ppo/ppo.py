@@ -6,13 +6,18 @@ from plot import add_curve, add_hline, save_plot
 class PPO:
 
     def __init__(self, load=False, alpha=0.0003, n_epochs=4,
-                 batch_size=5, layer1_size=512, layer2_size=512, t_max=20):
+                 batch_size=5, layer1_size=512, layer2_size=512,
+                 t_max=20, state_type='only prices', djia_year=2019, repeat=0):
 
         self.figure_dir = 'plots/ppo'
         self.t_max = t_max
-        self.env = PortfolioEnv(action_scale=1000)
-        self.intervals = self.env.get_intervals()
+        self.repeat = repeat
 
+        self.env = PortfolioEnv(action_scale=1000, state_type=state_type, djia_year=djia_year)
+        if djia_year == 2019:
+            self.intervals = self.env.get_intervals(train_ratio=0.7, valid_ratio=0.15, test_ratio=0.15)
+        elif djia_year == 2012:
+            self.intervals = self.env.get_intervals(train_ratio=0.9, valid_ratio=0.05, test_ratio=0.05)
         self.agent = Agent(action_dims=self.env.action_shape(), batch_size=batch_size, alpha=alpha,
                            n_epochs=n_epochs, input_dims=self.env.state_shape(),
                            fc1_dims=layer1_size, fc2_dims=layer2_size)
@@ -62,7 +67,7 @@ class PPO:
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_hline(buy_hold_final, 'Buy&Hold')
         add_curve(training_history, 'PPO')
-        save_plot(filename=self.figure_dir + '/training.png',
+        save_plot(filename=self.figure_dir + f'/{self.repeat}0_training.png',
                   title=f"Training - {self.intervals['training'][0]} to {self.intervals['training'][1]}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
@@ -70,7 +75,7 @@ class PPO:
         buy_hold_final = (buy_hold_history[-1] / buy_hold_history[0] - 1) * 1000000
         add_hline(buy_hold_final, 'Buy&Hold')
         add_curve(validation_history, 'PPO')
-        save_plot(filename=self.figure_dir + '/validation.png',
+        save_plot(filename=self.figure_dir + f'/{self.repeat}1_validation.png',
                   title=f"Validation - {self.intervals['validation'][0]} to {self.intervals['validation'][1]}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
@@ -109,6 +114,6 @@ class PPO:
         self.agent.memory.clear_memory()
 
         add_curve(return_history, 'PPO')
-        save_plot(self.figure_dir + '/testing.png',
+        save_plot(self.figure_dir + f'/{self.repeat}2_testing.png',
                   title=f"Testing - {self.intervals['testing'][0]} to {self.intervals['testing'][1]}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')
