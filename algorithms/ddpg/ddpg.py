@@ -9,18 +9,17 @@ class DDPG:
 
     def __init__(self, load=False, alpha=0.000025, beta=0.00025, tau=0.001,
                  batch_size=64, layer1_size=400, layer2_size=300, layer3_size=None,
-                 state_type='only prices', djia_year=2019, repeat=0,
-                 bn_drop='bn drop', action_input_layer='nothing', action_interpret='portfolio'):
+                 state_type='only prices', djia_year=2019, repeat=0):
 
         # self.figure_dir = f'plots/ddpg'
         # self.checkpoint_dir = None
-        self.figure_dir = f'plots/ddpg/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}_{bn_drop}_{action_input_layer}_{action_interpret}'
-        self.checkpoint_dir = f'checkpoints/ddpg/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}_{bn_drop}_{action_input_layer}_{action_interpret}'
+        self.figure_dir = f'plots/ddpg/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}'
+        self.checkpoint_dir = f'checkpoints/ddpg/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}'
         os.makedirs(self.figure_dir, exist_ok=True)
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.repeat = repeat
 
-        self.env = PortfolioEnv(action_scale=1000, state_type=state_type, djia_year=djia_year, action_interpret=action_interpret)
+        self.env = PortfolioEnv(action_scale=1000, state_type=state_type, djia_year=djia_year)
         if djia_year == 2019:
             self.intervals = self.env.get_intervals(train_ratio=0.7, valid_ratio=0.15, test_ratio=0.15)
         elif djia_year == 2012:

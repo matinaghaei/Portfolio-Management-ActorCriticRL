@@ -178,7 +178,7 @@ class ActorNetwork(nn.Module):
             x = F.relu(x)
             # x = self.drop(x)
         x = self.mu(x)
-        x = T.tanh(x)
+        # x = T.tanh(x)
 
         return x
 
@@ -227,8 +227,9 @@ class Agent(object):
         self.actor.eval()
         observation = T.tensor(observation, dtype=T.float).to(self.actor.device)
         mu = self.actor.forward(observation).to(self.actor.device)
-        # mu = mu + T.tensor(self.noise(),
-        #                         dtype=T.float).to(self.actor.device)
+        mu = mu + T.tensor(self.noise(),
+                                dtype=T.float).to(self.actor.device)
+        print(mu)
         self.actor.train()
         return mu.detach().cpu().numpy()
 

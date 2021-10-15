@@ -6,14 +6,14 @@ import os
 
 class PPO:
 
-    def __init__(self, load=False, alpha=0.0003, n_epochs=4,
-                 batch_size=5, layer1_size=512, layer2_size=512, layer3_size=None,
-                 t_max=20, state_type='only prices', djia_year=2019, repeat=0):
+    def __init__(self, load=False, alpha=0.0003, n_epochs=10,
+                 batch_size=64, layer1_size=512, layer2_size=512, layer3_size=None,
+                 t_max=256, state_type='only prices', djia_year=2019, repeat=0, entropy=0):
 
         # self.figure_dir = f'plots/ppo'
         # self.checkpoint_dir = None
-        self.figure_dir = f'plots/ppo/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}'
-        self.checkpoint_dir = f'checkpoints/ppo/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}'
+        self.figure_dir = f'plots/ppo/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}_{entropy}'
+        self.checkpoint_dir = f'checkpoints/ppo/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}_{entropy}'
         os.makedirs(self.figure_dir, exist_ok=True)
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.t_max = t_max
@@ -26,7 +26,7 @@ class PPO:
             self.intervals = self.env.get_intervals(train_ratio=0.9, valid_ratio=0.05, test_ratio=0.05)
         self.agent = Agent(action_dims=self.env.action_shape(), batch_size=batch_size, alpha=alpha,
                            n_epochs=n_epochs, input_dims=self.env.state_shape(),
-                           fc1_dims=layer1_size, fc2_dims=layer2_size)
+                           fc1_dims=layer1_size, fc2_dims=layer2_size, entropy=entropy)
 
         if load:
             self.agent.load_models(self.checkpoint_dir)
@@ -74,7 +74,7 @@ class PPO:
         add_hline(buy_hold_final, 'Buy&Hold')
         add_curve(training_history, 'PPO')
         save_plot(filename=self.figure_dir + f'/{self.repeat}0_training.png',
-                  title=f"Training - {self.intervals['training'][0]} to {self.intervals['training'][1]}",
+                  title=f"Training - {self.intervals['training'][0].date()} to {self.intervals['training'][1].date()}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
         buy_hold_history = self.env.buy_hold_history(*self.intervals['validation'])
@@ -82,7 +82,7 @@ class PPO:
         add_hline(buy_hold_final, 'Buy&Hold')
         add_curve(validation_history, 'PPO')
         save_plot(filename=self.figure_dir + f'/{self.repeat}1_validation.png',
-                  title=f"Validation - {self.intervals['validation'][0]} to {self.intervals['validation'][1]}",
+                  title=f"Validation - {self.intervals['validation'][0].date()} to {self.intervals['validation'][1].date()}",
                   x_label='Iteration', y_label='Cumulative Return (Dollars)')
 
     def validate(self, verbose=False):
@@ -121,5 +121,5 @@ class PPO:
 
         add_curve(return_history, 'PPO')
         save_plot(self.figure_dir + f'/{self.repeat}2_testing.png',
-                  title=f"Testing - {self.intervals['testing'][0]} to {self.intervals['testing'][1]}",
+                  title=f"Testing - {self.intervals['testing'][0].date()} to {self.intervals['testing'][1].date()}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')

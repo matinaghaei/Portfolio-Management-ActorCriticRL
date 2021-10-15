@@ -149,15 +149,17 @@ class PortfolioEnv:
     def step(self, action):
         
         if self.action_interpret == 'portfolio':
+            current_wealth = self.get_wealth()
             action = F.softmax(T.tensor(action, dtype=T.float), -1).numpy()
-            new_shares = np.floor(self.get_wealth() * action[1:] / self.prices)
+            new_shares = np.floor(current_wealth * action[1:] / self.prices)
             actions = new_shares - self.shares
             cost = self.prices.dot(actions)
             self.shares = self.shares + actions.astype(np.int)
             self.balance -= cost
             self.current_row += 1
             new_prices = self.get_prices()
-            reward = (new_prices - self.prices).dot(self.shares)
+            new_wealth = self.get_wealth()
+            reward = (new_wealth - current_wealth) / current_wealth
             self.prices = new_prices
         
         if self.action_interpret == 'transactions':

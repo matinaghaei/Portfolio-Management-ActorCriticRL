@@ -11,15 +11,15 @@ from plot import add_curve, save_plot
 
 
 class ActorCritic(nn.Module):
-    def __init__(self, input_dims, action_dims, gamma=0.99, fc1_dims=128, lr=1e-3,
-                 entropy_coef=1, chkpt_dir='checkpoints/a2c'):
+    def __init__(self, input_dims, action_dims, gamma=0.99, fc1_dims=128, fc2_dims=128, lr=1e-3, entropy=0,
+                 chkpt_dir='checkpoints/a2c'):
         super(ActorCritic, self).__init__()
 
         self.checkpoint_dir = chkpt_dir
         self.name = 'network'
 
         self.gamma = gamma
-        self.entropy_coef = entropy_coef
+        self.entropy = entropy
 
         self.rewards = []
         self.actions = []
@@ -38,17 +38,23 @@ class ActorCritic(nn.Module):
         # T.nn.init.uniform_(self.v1.bias.data, -f2, f2)
         self.bn2 = nn.LayerNorm(fc1_dims)
 
-        self.mu = nn.Linear(fc1_dims, *action_dims)
+        self.pi2 = nn.Linear(fc1_dims, fc2_dims)
+        self.bn3 = nn.LayerNorm(fc2_dims)
+
+        self.v2 = nn.Linear(fc1_dims, fc2_dims)
+        self.bn4 = nn.LayerNorm(fc2_dims)
+
+        self.mu = nn.Linear(fc2_dims, *action_dims)
         # f3 = 0.003
         # T.nn.init.uniform_(self.mu.weight.data, -f3, f3)
         # T.nn.init.uniform_(self.mu.bias.data, -f3, f3)
 
-        self.var = nn.Linear(fc1_dims, *action_dims)
+        self.var = nn.Linear(fc2_dims, *action_dims)
         # f4 = 0.003
         # T.nn.init.uniform_(self.var.weight.data, -f4, f4)
         # T.nn.init.uniform_(self.var.bias.data, -f4, f4)
 
-        self.v = nn.Linear(fc1_dims, 1)
+        self.v = nn.Linear(fc2_dims, 1)
         # f5 = 0.003
         # T.nn.init.uniform_(self.v.weight.data, -f5, f5)
         # T.nn.init.uniform_(self.v.bias.data, -f5, f5)
@@ -77,10 +83,12 @@ class ActorCritic(nn.Module):
     def forward(self, state):
         pi1 = F.relu(self.bn1(self.pi1(state)))
         v1 = F.relu(self.bn2(self.v1(state)))
+        pi2 = F.relu(self.bn3(self.pi2(pi1)))
+        v2 = F.relu(self.bn4(self.v2(v1)))
 
-        mu = self.mu(pi1)
-        var = F.softplus(self.var(pi1))
-        v = self.v(v1)
+        mu = self.mu(pi2)
+        var = F.softplus(self.var(pi2))
+        v = self.v(v2)
 
         return mu, var, v
 
@@ -117,9 +125,9 @@ class ActorCritic(nn.Module):
         log_probs = dist.log_prob(actions)
         actor_loss = (-log_probs * (returns-values).unsqueeze(-1)).mean()
 
-        entropy_loss = -dist.entropy().mean()
+        entropy_loss = -dist.entropy().sum(-1).mean()
 
-        total_loss = critic_loss + actor_loss + 0 * entropy_loss
+        total_loss = critic_loss + actor_loss + self.entropy * entropy_loss
 
         return total_loss
 

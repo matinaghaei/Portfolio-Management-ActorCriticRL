@@ -160,11 +160,12 @@ class CriticNetwork(nn.Module):
 
 class Agent:
     def __init__(self, action_dims, input_dims, fc1_dims=256, fc2_dims=256, gamma=0.99, alpha=0.0003,
-                 gae_lambda=0.95, policy_clip=0.2, batch_size=64, n_epochs=10):
+                 gae_lambda=0.95, policy_clip=0.2, batch_size=64, n_epochs=10, entropy=0):
         self.gamma = gamma
         self.policy_clip = policy_clip
         self.n_epochs = n_epochs
         self.gae_lambda = gae_lambda
+        self.entropy = entropy
 
         self.actor = ActorNetwork(action_dims, input_dims, alpha, fc1_dims, fc2_dims)
         self.critic = CriticNetwork(input_dims, alpha, fc1_dims, fc2_dims)
@@ -247,9 +248,9 @@ class Agent:
                 critic_loss = (returns - critic_value) ** 2
                 critic_loss = critic_loss.mean()
 
-                entropy_loss = -dist.entropy().mean()
+                entropy_loss = -dist.entropy().sum(-1).mean()
 
-                total_loss = actor_loss + 0.5 * critic_loss + 0 * entropy_loss
+                total_loss = actor_loss + 0.5 * critic_loss + self.entropy * entropy_loss
                 self.actor.optimizer.zero_grad()
                 self.critic.optimizer.zero_grad()
                 total_loss.backward()
