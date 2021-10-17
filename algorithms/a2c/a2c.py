@@ -3,19 +3,21 @@ from algorithms.a2c.agent import ActorCritic, Agent
 from torch.multiprocessing import Pipe, Lock
 from plot import add_curve, add_hline, save_plot
 import os
+import pandas as pd
+from pyfolio import timeseries
 
 
 class A2C:
 
     def __init__(self, n_agents, load=False, alpha=1e-3, gamma=0.99,
-                 layer1_size=128, layer2_size=None, layer3_size=None, t_max=64,
-                 state_type='only prices', djia_year=2019, repeat=0, entropy=0):
+                 layer1_size=512, layer2_size=512, t_max=64,
+                 state_type='only prices', djia_year=2019, repeat=0, entropy=1e-4):
 
         self.n_agents = n_agents
         # self.figure_dir = f'plots/a2c'
         # self.checkpoint_dir = None
-        self.figure_dir = f'plots/a2c/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}_{entropy}'
-        self.checkpoint_dir = f'checkpoints/a2c/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}_{entropy}'
+        self.figure_dir = f'plots/a2c/{djia_year}'
+        self.checkpoint_dir = f'checkpoints/a2c/{djia_year}'
         os.makedirs(self.figure_dir, exist_ok=True)
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.t_max = t_max
@@ -116,13 +118,14 @@ class A2C:
                       f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
         return wealth
 
-    def test(self):
-        return_history = []
+    def test(self, verbose=True):
+        return_history = [0]
         buy_hold_history = self.env.buy_hold_history(*self.intervals['testing'])
         add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy&Hold')
 
         done = False
         observation = self.env.reset(*self.intervals['testing'])
+        wealth_history = [self.env.get_wealth()]
         t_step = 0
         while not done:
             action = self.network.choose_action(observation)
@@ -136,12 +139,26 @@ class A2C:
                 self.network.clear_memory()
             t_step += 1
             observation = observation_
-
-            print(f"A2C testing - Date: {info.date()},\tBalance: {int(self.env.get_balance())},\t"
-                  f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
+            if verbose:
+                print(f"A2C testing - Date: {info.date()},\tBalance: {int(self.env.get_balance())},\t"
+                    f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
             return_history.append(wealth - 1000000)
+            wealth_history.append(wealth)
 
         add_curve(return_history, 'A2C')
         save_plot(self.figure_dir + f'/{self.repeat}2_testing.png',
                   title=f"Testing - {self.intervals['testing'][0].date()} to {self.intervals['testing'][1].date()}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')
+
+        if verbose:
+            print()
+            a2c_returns = pd.Series(wealth_history, buy_hold_history.index).pct_change().dropna()
+            a2c_stats = timeseries.perf_stats(a2c_returns)
+            print('A2C Perfomance:')
+            print(a2c_stats)
+            print()
+
+            baseline_returns = buy_hold_history.pct_change().dropna()
+            baseline_stats = timeseries.perf_stats(baseline_returns)
+            print('Buy&Hold Perfomance:')
+            print(baseline_stats)

@@ -66,11 +66,10 @@ class ReplayBuffer(object):
 
 
 class CriticNetwork(nn.Module):
-    def __init__(self, beta, input_dims, action_dims, fc1_dims, fc2_dims, fc3_dims, name,
+    def __init__(self, beta, input_dims, action_dims, fc1_dims, fc2_dims, name,
                  chkpt_dir='checkpoints/ddpg'):
         super(CriticNetwork, self).__init__()
 
-        self.fc3_dims = fc3_dims
         self.checkpoint_dir = chkpt_dir
         self.name = name
 
@@ -82,17 +81,9 @@ class CriticNetwork(nn.Module):
         self.fc2 = nn.Linear(fc1_dims, fc2_dims)
         self.bn2 = nn.LayerNorm(fc2_dims)
 
-        if fc3_dims is None:
-            self.action_value = nn.Linear(*action_dims, fc2_dims)
-            self.bna = nn.LayerNorm(fc2_dims)
-            self.q = nn.Linear(fc2_dims, 1)
-        
-        else:
-            self.fc3 = nn.Linear(fc2_dims, fc3_dims)
-            self.bn3 = nn.LayerNorm(fc3_dims)
-            self.action_value = nn.Linear(*action_dims, fc3_dims)
-            self.bna = nn.LayerNorm(fc3_dims)
-            self.q = nn.Linear(fc3_dims, 1)
+        self.action_value = nn.Linear(*action_dims, fc2_dims)
+        self.bna = nn.LayerNorm(fc2_dims)
+        self.q = nn.Linear(fc2_dims, 1)
 
         self.optimizer = optim.Adam(self.parameters(), lr=beta)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
@@ -106,16 +97,10 @@ class CriticNetwork(nn.Module):
         # state_value = self.drop(state_value)
         state_value = self.fc2(state_value)
         state_value = self.bn2(state_value)
-
-        if self.fc3_dims is not None:
-            state_value = F.relu(state_value)
-            # state_value = self.drop(state_value)
-            state_value = self.fc3(state_value)
-            state_value = self.bn3(state_value)
         
         action_value = self.action_value(action)
         # action_value = self.bna(action_value)
-        # action_value = F.relu(action_value)
+        action_value = F.relu(action_value)
         # action_value = self.drop(action_value)
         state_action_value = F.relu(T.add(state_value, action_value))
         state_action_value = self.q(state_action_value)
@@ -134,11 +119,10 @@ class CriticNetwork(nn.Module):
 
 
 class ActorNetwork(nn.Module):
-    def __init__(self, alpha, input_dims, action_dims, fc1_dims, fc2_dims, fc3_dims, name,
+    def __init__(self, alpha, input_dims, action_dims, fc1_dims, fc2_dims, name,
                  chkpt_dir='checkpoints/ddpg'):
         super(ActorNetwork, self).__init__()
         
-        self.fc3_dims = fc3_dims
         self.checkpoint_dir = chkpt_dir
         self.name = name
 
@@ -150,13 +134,7 @@ class ActorNetwork(nn.Module):
         self.fc2 = nn.Linear(fc1_dims, fc2_dims)
         self.bn2 = nn.LayerNorm(fc2_dims)
 
-        if fc3_dims is None:
-            self.mu = nn.Linear(fc2_dims, *action_dims)
-
-        else:
-            self.fc3 = nn.Linear(fc2_dims, fc3_dims)
-            self.bn3 = nn.LayerNorm(fc3_dims)
-            self.mu = nn.Linear(fc3_dims, *action_dims)
+        self.mu = nn.Linear(fc2_dims, *action_dims)
 
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
@@ -172,11 +150,6 @@ class ActorNetwork(nn.Module):
         x = self.bn2(x)
         x = F.relu(x)
         # x = self.drop(x)
-        if self.fc3_dims is not None:
-            x = self.fc3(x)
-            x = self.bn3(x)
-            x = F.relu(x)
-            # x = self.drop(x)
         x = self.mu(x)
         # x = T.tanh(x)
 
@@ -195,25 +168,21 @@ class ActorNetwork(nn.Module):
 
 class Agent(object):
     def __init__(self, alpha, beta, input_dims, action_dims, tau, gamma=0.99,
-                 max_size=1000000, layer1_size=400, layer2_size=300, layer3_size=None, 
-                 batch_size=64):
+                 max_size=1000000, layer1_size=400, layer2_size=300, batch_size=64):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, action_dims)
         self.batch_size = batch_size
 
         self.actor = ActorNetwork(alpha, input_dims, action_dims,
-                                  layer1_size, layer2_size, layer3_size, 
-                                  name='actor')
+                                  layer1_size, layer2_size, name='actor')
         self.critic = CriticNetwork(beta, input_dims, action_dims,
-                                    layer1_size, layer2_size, layer3_size, name='critic')
+                                    layer1_size, layer2_size, name='critic')
 
         self.target_actor = ActorNetwork(alpha, input_dims, action_dims,
-                                         layer1_size, layer2_size, layer3_size,
-                                         name='target_actor')
+                                         layer1_size, layer2_size, name='target_actor')
         self.target_critic = CriticNetwork(beta, input_dims, action_dims,
-                                           layer1_size, layer2_size, layer3_size,
-                                           name='target_critic')
+                                           layer1_size, layer2_size, name='target_critic')
         self.actor.train()
         self.critic.train()
         self.target_actor.eval()
@@ -229,7 +198,6 @@ class Agent(object):
         mu = self.actor.forward(observation).to(self.actor.device)
         mu = mu + T.tensor(self.noise(),
                                 dtype=T.float).to(self.actor.device)
-        print(mu)
         self.actor.train()
         return mu.detach().cpu().numpy()
 

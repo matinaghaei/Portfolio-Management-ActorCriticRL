@@ -2,18 +2,20 @@ from env.environment import PortfolioEnv
 from algorithms.ppo.agent import Agent
 from plot import add_curve, add_hline, save_plot
 import os
+import pandas as pd
+from pyfolio import timeseries
 
 
 class PPO:
 
     def __init__(self, load=False, alpha=0.0003, n_epochs=10,
-                 batch_size=64, layer1_size=512, layer2_size=512, layer3_size=None,
-                 t_max=256, state_type='only prices', djia_year=2019, repeat=0, entropy=0):
+                 batch_size=64, layer1_size=512, layer2_size=512, t_max=256,
+                 state_type='only prices', djia_year=2019, repeat=0, entropy=0):
 
         # self.figure_dir = f'plots/ppo'
         # self.checkpoint_dir = None
-        self.figure_dir = f'plots/ppo/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}_{entropy}'
-        self.checkpoint_dir = f'checkpoints/ppo/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}_{entropy}'
+        self.figure_dir = f'plots/ppo/{djia_year}'
+        self.checkpoint_dir = f'checkpoints/ppo/{djia_year}'
         os.makedirs(self.figure_dir, exist_ok=True)
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.t_max = t_max
@@ -97,13 +99,14 @@ class PPO:
                       f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
         return wealth
 
-    def test(self):
-        return_history = []
+    def test(self, verbose=True):
+        return_history = [0]
         buy_hold_history = self.env.buy_hold_history(*self.intervals['testing'])
         add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy&Hold')
         n_steps = 0
 
         observation = self.env.reset(*self.intervals['testing'])
+        wealth_history = [self.env.get_wealth()]
         done = False
         while not done:
             action, prob, val = self.agent.choose_action(observation)
@@ -113,13 +116,27 @@ class PPO:
             if n_steps % self.t_max == 0:
                 self.agent.learn()
             observation = observation_
-
-            print(f"PPO testing - Date: {info.date()},\tBalance: {int(self.env.get_balance())},\t"
-                  f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
+            if verbose:
+                print(f"PPO testing - Date: {info.date()},\tBalance: {int(self.env.get_balance())},\t"
+                    f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
             return_history.append(wealth - 1000000)
+            wealth_history.append(wealth)
         self.agent.memory.clear_memory()
 
         add_curve(return_history, 'PPO')
         save_plot(self.figure_dir + f'/{self.repeat}2_testing.png',
                   title=f"Testing - {self.intervals['testing'][0].date()} to {self.intervals['testing'][1].date()}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')
+
+        if verbose:
+            print()
+            ppo_returns = pd.Series(wealth_history, buy_hold_history.index).pct_change().dropna()
+            ppo_stats = timeseries.perf_stats(ppo_returns)
+            print('PPO Perfomance:')
+            print(ppo_stats)
+            print()
+
+            baseline_returns = buy_hold_history.pct_change().dropna()
+            baseline_stats = timeseries.perf_stats(baseline_returns)
+            print('Buy&Hold Perfomance:')
+            print(baseline_stats)

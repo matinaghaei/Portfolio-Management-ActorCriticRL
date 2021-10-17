@@ -26,6 +26,8 @@ class ActorCritic(nn.Module):
         self.states = []
         self.done = False
 
+        self.drop = nn.Dropout()
+
         self.pi1 = nn.Linear(*input_dims, fc1_dims)
         # f1 = 1. / np.sqrt(self.pi1.weight.data.size()[0])
         # T.nn.init.uniform_(self.pi1.weight.data, -f1, f1)
@@ -82,9 +84,13 @@ class ActorCritic(nn.Module):
 
     def forward(self, state):
         pi1 = F.relu(self.bn1(self.pi1(state)))
+        # pi1 = self.drop(pi1)
         v1 = F.relu(self.bn2(self.v1(state)))
+        # v1 = self.drop(v1)
         pi2 = F.relu(self.bn3(self.pi2(pi1)))
+        # pi2 = self.drop(pi2)
         v2 = F.relu(self.bn4(self.v2(v1)))
+        # v2 = self.drop(v2)
 
         mu = self.mu(pi2)
         var = F.softplus(self.var(pi2))
@@ -125,7 +131,7 @@ class ActorCritic(nn.Module):
         log_probs = dist.log_prob(actions)
         actor_loss = (-log_probs * (returns-values).unsqueeze(-1)).mean()
 
-        entropy_loss = -dist.entropy().sum(-1).mean()
+        entropy_loss = -dist.entropy().mean()
 
         total_loss = critic_loss + actor_loss + self.entropy * entropy_loss
 

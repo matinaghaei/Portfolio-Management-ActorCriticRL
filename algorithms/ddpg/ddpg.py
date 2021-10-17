@@ -3,18 +3,20 @@ from algorithms.ddpg.agent import Agent
 import numpy as np
 from plot import add_curve, add_hline, save_plot
 import os
+import pandas as pd
+from pyfolio import timeseries
 
 
 class DDPG:
 
     def __init__(self, load=False, alpha=0.000025, beta=0.00025, tau=0.001,
-                 batch_size=64, layer1_size=400, layer2_size=300, layer3_size=None,
+                 batch_size=64, layer1_size=400, layer2_size=300,
                  state_type='only prices', djia_year=2019, repeat=0):
 
         # self.figure_dir = f'plots/ddpg'
         # self.checkpoint_dir = None
-        self.figure_dir = f'plots/ddpg/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}'
-        self.checkpoint_dir = f'checkpoints/ddpg/{layer1_size}_{layer2_size}_{layer3_size}_{state_type}_{djia_year}'
+        self.figure_dir = f'plots/ddpg/{djia_year}'
+        self.checkpoint_dir = f'checkpoints/ddpg/{djia_year}'
         os.makedirs(self.figure_dir, exist_ok=True)
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.repeat = repeat
@@ -26,7 +28,7 @@ class DDPG:
             self.intervals = self.env.get_intervals(train_ratio=0.9, valid_ratio=0.05, test_ratio=0.05)
         self.agent = Agent(alpha=alpha, beta=beta, input_dims=self.env.state_shape(), 
                            action_dims=self.env.action_shape(), tau=tau, batch_size=batch_size, 
-                           layer1_size=layer1_size, layer2_size=layer2_size, layer3_size=layer3_size)
+                           layer1_size=layer1_size, layer2_size=layer2_size)
         if load:
             self.agent.load_models(self.checkpoint_dir)
 
@@ -98,11 +100,12 @@ class DDPG:
         return wealth
 
     def test(self, verbose=True):
-        return_history = []
+        return_history = [0]
         buy_hold_history = self.env.buy_hold_history(*self.intervals['testing'])
         add_curve((buy_hold_history / buy_hold_history[0] - 1) * 1000000, 'Buy&Hold')
 
         observation = self.env.reset(*self.intervals['testing'])
+        wealth_history = [self.env.get_wealth()]
         done = False
         while not done:
             action = self.agent.choose_action(observation)
@@ -114,9 +117,23 @@ class DDPG:
                 print(f"DDPG testing - Date: {info.date()},\tBalance: {int(self.env.get_balance())},\t"
                     f"Cumulative Return: {int(wealth) - 1000000},\tShares: {self.env.get_shares()}")
             return_history.append(wealth - 1000000)
+            wealth_history.append(wealth)
         self.agent.memory.clear_buffer()
 
         add_curve(return_history, 'DDPG')
         save_plot(self.figure_dir + f'/{self.repeat}2_testing.png',
                   title=f"Testing - from {self.intervals['testing'][0].date()} to {self.intervals['testing'][1].date()}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')
+        
+        if verbose:
+            print()
+            ddpg_returns = pd.Series(wealth_history, buy_hold_history.index).pct_change().dropna()
+            ddpg_stats = timeseries.perf_stats(ddpg_returns)
+            print('DDPG Perfomance:')
+            print(ddpg_stats)
+            print()
+
+            baseline_returns = buy_hold_history.pct_change().dropna()
+            baseline_stats = timeseries.perf_stats(baseline_returns)
+            print('Buy&Hold Perfomance:')
+            print(baseline_stats)

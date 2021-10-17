@@ -3,6 +3,7 @@ import torch as T
 import torch.nn.functional as F
 from env.loader import Loader
 from finta import TA
+import pandas as pd
 
 
 class PortfolioEnv:
@@ -79,18 +80,6 @@ class PortfolioEnv:
             for stock in self.historical_data:
                 state.extend(stock[['Adj Close', 'MA20', 'MA50', 'MA200', 'ATR', 'Volume']].iloc[self.current_row])
             return np.array(state)
-        
-        # return [self.balance] + self.prices.tolist() + self.shares.tolist()
-
-        # return self.prices.tolist()
-
-        # state = (self.prices - min(self.prices)) / (max(self.prices) - min(self.prices))
-        # return state.tolist()
-
-        # state = []
-        # for stock in self.historical_data:
-        #     state.extend(stock[['Adj Close', 'MA20', 'MA50', 'MA200', 'ATR', 'Volume']].iloc[self.current_row])
-        # return np.array(state)
 
     def is_finished(self):
         return self.current_row == self.end_row
@@ -116,8 +105,12 @@ class PortfolioEnv:
             end_row = self.historical_data[0].index.size - 1
         else:
             end_row = self.historical_data[0].index.get_loc(end_date)
-        return [sum([stock['Adj Close'][row] for stock in self.historical_data])
-                for row in range(start_row, end_row + 1)]
+        
+        values = [sum([stock['Adj Close'][row] for stock in self.historical_data])
+                  for row in range(start_row, end_row + 1)]
+        dates = self.historical_data[0].index[start_row:end_row+1]
+
+        return pd.Series(values, index=dates)
 
     def get_intervals(self, train_ratio=0.7, valid_ratio=0.15, test_ratio=0.15):
         index = self.historical_data[0].index
@@ -158,8 +151,7 @@ class PortfolioEnv:
             self.balance -= cost
             self.current_row += 1
             new_prices = self.get_prices()
-            new_wealth = self.get_wealth()
-            reward = (new_wealth - current_wealth) / current_wealth
+            reward = (new_prices - self.prices).dot(self.shares)
             self.prices = new_prices
         
         if self.action_interpret == 'transactions':
@@ -176,21 +168,6 @@ class PortfolioEnv:
             self.prices = new_prices
 
         return self.get_state(), reward, self.is_finished(), self.get_date(), self.get_wealth()
-
-    # def step(self, action):
-    #     actions = np.maximum(np.round(np.array(action) * self.action_scale), -self.shares)
-    #     cost = self.prices.dot(actions)
-    #     if cost > self.balance:
-    #         actions = np.floor(actions * self.balance / cost)
-    #         cost = self.prices.dot(actions)
-    #     self.shares = self.shares + actions.astype(np.int)
-    #     self.balance -= cost
-    #     self.current_row += 1
-    #     new_prices = self.get_prices()
-    #     reward = (new_prices - self.prices).dot(self.shares)
-    #     self.prices = new_prices
-
-    #     return self.get_state(), reward, self.is_finished(), self.get_date(), self.get_wealth()
 
     # def step(self, action):
     #     actions = np.clip(action, -1, +1)
@@ -210,17 +187,4 @@ class PortfolioEnv:
     #     reward = (new_prices - self.prices).dot(self.shares)
     #     self.prices = new_prices
     #
-    #     return self.get_state(), reward, self.is_finished(), self.get_date(), self.get_wealth()
-
-    # def step(self, action):
-    #     new_shares = np.floor(self.get_wealth() * np.array(action[1:]) / self.prices)
-    #     actions = new_shares - self.shares
-    #     cost = self.prices.dot(actions)
-    #     self.shares = self.shares + actions.astype(np.int)
-    #     self.balance -= cost
-    #     self.current_row += 1
-    #     new_prices = self.get_prices()
-    #     reward = (new_prices - self.prices).dot(self.shares)
-    #     self.prices = new_prices
-
     #     return self.get_state(), reward, self.is_finished(), self.get_date(), self.get_wealth()

@@ -248,7 +248,7 @@ class Agent:
                 critic_loss = (returns - critic_value) ** 2
                 critic_loss = critic_loss.mean()
 
-                entropy_loss = -dist.entropy().sum(-1).mean()
+                entropy_loss = -dist.entropy().mean()
 
                 total_loss = actor_loss + 0.5 * critic_loss + self.entropy * entropy_loss
                 self.actor.optimizer.zero_grad()
