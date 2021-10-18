@@ -14,7 +14,7 @@ def main():
     plot.initialize()
     mp.set_start_method('spawn')
 
-    for i in range(5):
+    for i in range(20):
         if os.path.isfile(f'plots/ddpg/{i}2_testing.png'):
             print('already done!')
             continue

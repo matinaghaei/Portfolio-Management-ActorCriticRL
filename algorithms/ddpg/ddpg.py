@@ -13,12 +13,10 @@ class DDPG:
                  batch_size=64, layer1_size=400, layer2_size=300,
                  state_type='only prices', djia_year=2019, repeat=0):
 
-        # self.figure_dir = f'plots/ddpg'
-        # self.checkpoint_dir = None
-        self.figure_dir = f'plots/ddpg/{djia_year}'
-        self.checkpoint_dir = f'checkpoints/ddpg/{djia_year}'
-        os.makedirs(self.figure_dir, exist_ok=True)
-        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        self.figure_dir = f'plots/ddpg'
+        self.checkpoint_dir = None
+        # os.makedirs(self.figure_dir, exist_ok=True)
+        # os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.repeat = repeat
 
         self.env = PortfolioEnv(action_scale=1000, state_type=state_type, djia_year=djia_year)
