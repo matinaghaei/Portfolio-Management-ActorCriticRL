@@ -126,15 +126,6 @@ class PPO:
                   title=f"Testing - {self.intervals['testing'][0].date()} to {self.intervals['testing'][1].date()}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')
 
-        if verbose:
-            print()
-            ppo_returns = pd.Series(wealth_history, buy_hold_history.index).pct_change().dropna()
-            ppo_stats = timeseries.perf_stats(ppo_returns)
-            print('PPO Perfomance:')
-            print(ppo_stats)
-            print()
-
-            baseline_returns = buy_hold_history.pct_change().dropna()
-            baseline_stats = timeseries.perf_stats(baseline_returns)
-            print('Buy&Hold Perfomance:')
-            print(baseline_stats)
+        returns = pd.Series(wealth_history, buy_hold_history.index).pct_change().dropna()
+        stats = timeseries.perf_stats(returns)
+        stats.to_csv(self.figure_dir + f'/{self.repeat}3_perf.png')

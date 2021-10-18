@@ -123,15 +123,6 @@ class DDPG:
                   title=f"Testing - from {self.intervals['testing'][0].date()} to {self.intervals['testing'][1].date()}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')
         
-        if verbose:
-            print()
-            ddpg_returns = pd.Series(wealth_history, buy_hold_history.index).pct_change().dropna()
-            ddpg_stats = timeseries.perf_stats(ddpg_returns)
-            print('DDPG Perfomance:')
-            print(ddpg_stats)
-            print()
-
-            baseline_returns = buy_hold_history.pct_change().dropna()
-            baseline_stats = timeseries.perf_stats(baseline_returns)
-            print('Buy&Hold Perfomance:')
-            print(baseline_stats)
+        returns = pd.Series(wealth_history, buy_hold_history.index).pct_change().dropna()
+        stats = timeseries.perf_stats(returns)
+        stats.to_csv(self.figure_dir + f'/{self.repeat}3_perf.png')

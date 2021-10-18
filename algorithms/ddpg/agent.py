@@ -195,7 +195,7 @@ class Agent(object):
     def choose_action(self, observation):
         self.actor.eval()
         observation = T.tensor(observation, dtype=T.float).to(self.actor.device)
-        mu = self.actor.forward(observation).to(self.actor.device)
+        mu = self.actor.forward(observation)
         mu = mu + T.tensor(self.noise(),
                                 dtype=T.float).to(self.actor.device)
         self.actor.train()
