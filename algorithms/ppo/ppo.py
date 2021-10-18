@@ -10,7 +10,7 @@ class PPO:
 
     def __init__(self, load=False, alpha=0.0003, n_epochs=10,
                  batch_size=64, layer1_size=512, layer2_size=512, t_max=256,
-                 state_type='only prices', djia_year=2019, repeat=0, entropy=0):
+                 state_type='only prices', djia_year=2019, repeat=0, entropy=1e-4):
 
         # self.figure_dir = f'plots/ppo'
         # self.checkpoint_dir = None
