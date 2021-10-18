@@ -128,4 +128,4 @@ class PPO:
 
         returns = pd.Series(wealth_history, buy_hold_history.index).pct_change().dropna()
         stats = timeseries.perf_stats(returns)
-        stats.to_csv(self.figure_dir + f'/{self.repeat}3_perf.png')
+        stats.to_csv(self.figure_dir + f'/{self.repeat}3_perf.csv')
