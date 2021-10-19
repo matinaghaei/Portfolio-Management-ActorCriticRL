@@ -14,10 +14,10 @@ class A2C:
                  state_type='only prices', djia_year=2019, repeat=0, entropy=1e-4):
 
         self.n_agents = n_agents
-        self.figure_dir = f'plots/a2c'
-        self.checkpoint_dir = None
-        # os.makedirs(self.figure_dir, exist_ok=True)
-        # os.makedirs(self.checkpoint_dir, exist_ok=True)
+        self.figure_dir = 'plots/a2c'
+        self.checkpoint_dir = 'checkpoints/a2c'
+        os.makedirs(self.figure_dir, exist_ok=True)
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.t_max = t_max
         self.state_type = state_type
         self.djia_year = djia_year

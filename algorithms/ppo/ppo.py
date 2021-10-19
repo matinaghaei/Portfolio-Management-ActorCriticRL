@@ -10,12 +10,12 @@ class PPO:
 
     def __init__(self, load=False, alpha=0.0003, n_epochs=10,
                  batch_size=64, layer1_size=512, layer2_size=512, t_max=256,
-                 state_type='only prices', djia_year=2019, repeat=0, entropy=1e-4):
+                 state_type='only prices', djia_year=2019, repeat=0, entropy=1e-2):
 
-        self.figure_dir = f'plots/ppo'
-        self.checkpoint_dir = None
-        # os.makedirs(self.figure_dir, exist_ok=True)
-        # os.makedirs(self.checkpoint_dir, exist_ok=True)
+        self.figure_dir = 'plots/ppo'
+        self.checkpoint_dir = 'checkpoints/ppo'
+        os.makedirs(self.figure_dir, exist_ok=True)
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.t_max = t_max
         self.repeat = repeat
 
