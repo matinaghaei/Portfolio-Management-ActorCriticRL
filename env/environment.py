@@ -139,11 +139,14 @@ class PortfolioEnv:
 
         return intervals
 
-    def step(self, action):
+    def step(self, action, softmax=True):
         
         if self.action_interpret == 'portfolio':
             current_wealth = self.get_wealth()
-            action = F.softmax(T.tensor(action, dtype=T.float), -1).numpy()
+            if softmax:
+                action = F.softmax(T.tensor(action, dtype=T.float), -1).numpy()
+            else:
+                action = np.array(action)
             new_shares = np.floor(current_wealth * action[1:] / self.prices)
             actions = new_shares - self.shares
             cost = self.prices.dot(actions)
