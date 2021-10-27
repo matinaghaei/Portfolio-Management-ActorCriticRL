@@ -14,7 +14,7 @@ def main():
     plot.initialize()
     mp.set_start_method('spawn')
 
-    for i in range(20):
+    for i in range(50):
         print(f"---------- round {i} ----------")
 
         if not os.path.isfile(f'plots/ddpg/{i}2_testing.png'):

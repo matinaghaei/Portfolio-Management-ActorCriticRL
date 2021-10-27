@@ -2,9 +2,9 @@
 import numpy as np
 import pandas as pd
 
-a2c_stats = [pd.read_csv(f'plots/a2c/{i}3_perf.csv', index_col=0) for i in range(20)]
-ddpg_stats = [pd.read_csv(f'plots/ddpg/{i}3_perf.csv', index_col=0) for i in range(20)]
-ppo_stats = [pd.read_csv(f'plots/ppo/{i}3_perf.csv', index_col=0) for i in range(20)]
+a2c_stats = [pd.read_csv(f'plots/a2c/{i}3_perf.csv', index_col=0) for i in range(50)]
+ddpg_stats = [pd.read_csv(f'plots/ddpg/{i}3_perf.csv', index_col=0) for i in range(50)]
+ppo_stats = [pd.read_csv(f'plots/ppo/{i}3_perf.csv', index_col=0) for i in range(50)]
 
 #%%
 print('A2C')
