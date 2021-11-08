@@ -12,4 +12,4 @@ DDPG performance against Buy & Hold:
 
 PPO performance against Buy & Hold:
 
-![](https://github.com/matinaghaei/Stock-Trading-ActorCriticRL/blob/master/plots/ppo/112_testing.png?raw=true)
+![](https://github.com/matinaghaei/Stock-Trading-ActorCriticRL/blob/master/plots/ppo/42_testing.png?raw=true)
