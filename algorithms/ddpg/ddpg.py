@@ -120,7 +120,7 @@ class DDPG:
 
         add_curve(return_history, 'DDPG')
         save_plot(self.figure_dir + f'/{self.repeat}2_testing.png',
-                  title=f"Testing - from {self.intervals['testing'][0].date()} to {self.intervals['testing'][1].date()}",
+                  title=f"Testing - {self.intervals['testing'][0].date()} to {self.intervals['testing'][1].date()}",
                   x_label='Days', y_label='Cumulative Return (Dollars)')
         
         returns = pd.Series(wealth_history, buy_hold_history.index).pct_change().dropna()
