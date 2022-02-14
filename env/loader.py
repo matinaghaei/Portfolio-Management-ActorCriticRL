@@ -19,9 +19,7 @@ class Loader:
 
     def read_data(self):
         for ticker in self.tickers:
-            data = pd.read_csv(f'env/data/DJIA_{self.djia_year}/ticker_{ticker}.csv')
-            data['Date'] = pd.to_datetime(data['Date'])
-            data.set_index('Date', inplace=True)
+            data = pd.read_csv(f'env/data/DJIA_{self.djia_year}/ticker_{ticker}.csv', parse_dates=True, index_col='Date')
             self.stocks.append(data)
 
     def load(self, download=False, start_date=None, end_date=None):

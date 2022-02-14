@@ -13,8 +13,8 @@ intervals = env.get_intervals()
 buy_hold_history = env.buy_hold_history(*intervals['testing'])
 stats = []
 
-iteration = 1
-while iteration <= 50:
+iteration = 0
+while iteration < 50:
     print(f'interation {iteration}')
     observation = env.reset(*intervals['testing'])
     wealth_history = [env.get_wealth()]
